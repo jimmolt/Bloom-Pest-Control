@@ -151,6 +151,7 @@ label.ck{display:flex;gap:8px;align-items:center;font-size:14px;font-weight:500;
 label.ck input{width:20px;height:20px;accent-color:var(--brand)}
 .lines{display:grid;gap:8px}
 .ln{display:grid;grid-template-columns:1fr 64px 92px auto;gap:6px;align-items:end}
+.ln .dl{grid-column:1/-1}
 .ln .tx{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
 @media(max-width:520px){.ln{grid-template-columns:1fr 1fr}.ln label:first-child{grid-column:1/-1}}
 .sum{display:flex;justify-content:flex-end;gap:18px;flex-wrap:wrap;font-size:14px;margin-top:8px}
@@ -480,7 +481,7 @@ function vSet(){const s=S.settings;
  <label class="ck" style="margin-top:8px"><input type="checkbox" data-sc="showDashboard" ${s.showDashboard?'checked':''}> Show the Dashboard tab</label></fieldset>
  <fieldset><legend>Backup</legend><p class="hint" style="margin-top:0">Data and photos live in this browser on this device. Save a backup regularly and before changing phones or clearing browser data. The backup is an HTML file you can open and read, and Restore reads it back.</p>
  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn pri" data-act="backup">Save backup</button><label class="btn" style="cursor:pointer">Restore from backup<input type="file" id="restore" accept=".html,.htm,.json,text/html,application/json" hidden></label></div></fieldset>
- <p class="hint" style="text-align:center">Bloom Pest Control app, version 2026-11-07 g</p>
+ <p class="hint" style="text-align:center">Bloom Pest Control app, version 2026-11-07 h</p>
  <fieldset><legend>Reset</legend><div style="display:flex;gap:8px;flex-wrap:wrap">${S.sample?'<button class="btn" data-act="clearSample">Clear example data</button>':''}<button class="btn bad" data-act="resetAll" data-arm="1">Erase everything</button></div></fieldset>`}
 
 /* ---------- modal plumbing ---------- */
@@ -490,6 +491,8 @@ function sbodyTop(){const b=document.querySelector('#modal .sbody');return b?b.s
 function setTop(y){const b=document.querySelector('#modal .sbody');if(b)b.scrollTop=y}
 
 /* ---------- job editor ---------- */
+function svcTypes(){return (S.settings.jobTypes||[]).filter(t=>!/^other$/i.test(String(t.name).trim()))}
+function lineOther(l){if(l._o!==undefined)return l._o;return !svcTypes().some(t=>t.name===l.desc)}
 function blankJob(custId){const t=S.settings.jobTypes[0]||{name:'Service',rate:0};const c=custId&&cust(custId);
  return{id:uid(),customerId:custId||'',custName:c?c.name:'',newPhone:'',type:t.name,date:today(),time:'',address:c?c.address:'',status:'upcoming',
  lines:[{id:uid(),desc:t.name,qty:1,rate:t.rate,tax:true}],treatment:{pests:'',product:'',epa:'',amount:'',method:'',areas:''},notes:'',invNotes:'',showTreat:true,miles:'',costs:{chem:'',other:''},invNo:'',invDate:'',dueDate:'',paidDate:'',payMethod:'',loc:null}}
@@ -511,7 +514,7 @@ function renderJob(){const y=sbodyTop(),j=D,tt=totals(Object.assign({},j,{custom
   <label class="f">Service type<select data-f="type">${S.settings.jobTypes.map(t=>`<option ${t.name===j.type?'selected':''}>${esc(t.name)}</option>`).join('')}${S.settings.jobTypes.some(t=>t.name===j.type)?'':`<option selected>${esc(j.type)}</option>`}</select></label>
   <label class="f">Date<input type="date" data-f="date" value="${esc(j.date)}"></label><label class="f">Time<input type="time" data-f="time" value="${esc(j.time)}"></label></div>
   </fieldset>
- <fieldset><legend>Charges</legend><div class="lines">${j.lines.map((l,i)=>`<div class="ln"><label class="f">Description<input data-l="${i}" data-k="desc" value="${esc(l.desc)}"></label><label class="f">Qty<input data-l="${i}" data-k="qty" type="number" step="any" min="0" value="${esc(l.qty)}" inputmode="decimal"></label><label class="f">Price each<input data-l="${i}" data-k="rate" type="number" step="0.01" value="${esc(l.rate)}" inputmode="decimal"></label><div class="tx"><label class="ck"><input type="checkbox" data-l="${i}" data-k="tax" ${l.tax?'checked':''}>Tax</label><button class="btn sm bad" data-act="delLine" data-id="${i}" aria-label="Remove line">×</button></div></div>`).join('')}</div>
+ <fieldset><legend>Charges</legend><div class="lines">${j.lines.map((l,i)=>{const o=lineOther(l);return `<div class="ln"><label class="f">Service<select data-l="${i}" data-k="sel">${svcTypes().map(t=>`<option value="${esc(t.name)}" ${!o&&t.name===l.desc?'selected':''}>${esc(t.name)}${num(t.rate)?' ('+money(num(t.rate))+')':''}</option>`).join('')}<option value="__other" ${o?'selected':''}>Other (enter manually)</option></select></label><label class="f">Qty<input data-l="${i}" data-k="qty" type="number" step="any" min="0" value="${esc(l.qty)}" inputmode="decimal"></label><label class="f">Price each<input data-l="${i}" data-k="rate" type="number" step="0.01" value="${esc(l.rate)}" inputmode="decimal"></label><div class="tx"><label class="ck"><input type="checkbox" data-l="${i}" data-k="tax" ${l.tax?'checked':''}>Tax</label><button class="btn sm bad" data-act="delLine" data-id="${i}" aria-label="Remove line">×</button></div>${o?`<label class="f dl">Description (shown on invoice)<input data-l="${i}" data-k="desc" value="${esc(l.desc)}" placeholder="Describe the work"></label>`:''}</div>`}).join('')}</div>
   <div style="margin-top:10px"><button class="btn sm" data-act="addLine">+ Add line</button></div>
   <div class="sum"><span>Subtotal <b class="num" id="t-sub">${money(tt.sub)}</b></span><span>Tax <b class="num" id="t-tax">${money(tt.tax)}</b></span><span>Total <b class="num" id="t-tot">${money(tt.total)}</b></span></div></fieldset>
  <fieldset><legend>What was sprayed</legend><div class="fg">
@@ -698,7 +701,7 @@ const acts={
   try{if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:f.name});return}}catch(e){if(e&&e.name==='AbortError')return}
   if(await saveBlob(f.name,f))toast('PDF saved')},
  copyInv(el){copyText(invText(job(el.dataset.id)))},
- addLine(){const t=S.settings.jobTypes.find(t=>t.name===D.type);D.lines.push({id:uid(),desc:'',qty:1,rate:t?'':'',tax:true});renderJob()},
+ addLine(){const t=svcTypes()[0];D.lines.push(t?{id:uid(),desc:t.name,qty:1,rate:t.rate,tax:true,_o:false}:{id:uid(),desc:'',qty:1,rate:'',tax:true,_o:true});renderJob()},
  delLine(el){D.lines.splice(+el.dataset.id,1);renderJob()},
  delPhoto(el){const id=el.dataset.id;P=P.filter(p=>p.id!==id);idbDel(id);renderJob()},
  viewPhoto(el){const p=P.find(p=>p.id===el.dataset.id);if(!p)return;const d=document.createElement('div');d.className='lightbox';d.innerHTML=`<img src="${p.data}" alt="">`;d.onclick=()=>d.remove();document.body.appendChild(d)},
@@ -750,6 +753,7 @@ function onField(e){const t=e.target;
   else refreshTotals();return}
  if(t.dataset.t){D.treatment[t.dataset.t]=t.value;return}
  if(t.dataset.c){D.costs[t.dataset.c]=t.value;return}
+  if(t.dataset.l!==undefined&&t.dataset.k==='sel'){if(e.type!=='change')return;const l=D.lines[+t.dataset.l];if(t.value==='__other'){l._o=true;l.desc='';l.rate=''}else{const st=svcTypes().find(x=>x.name===t.value);l._o=false;l.desc=t.value;l.rate=st?st.rate:''}renderJob();return}
   if(t.dataset.l!==undefined){const l=D.lines[+t.dataset.l];l[t.dataset.k]=t.type==='checkbox'?t.checked:t.value;refreshTotals()}}
 let kbT=null,ptrDown=false;
 function syncKb(){const sh=document.querySelector('#modal .sheet');if(!sh)return;const a=document.activeElement;
