@@ -37,10 +37,13 @@
 
 *{box-sizing:border-box}
 html,body{min-height:100%}
-body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45;
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45;overflow-x:clip;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 40px}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--logo-bg)}
 button,input,select,textarea{font:inherit;color:inherit}
+input,select,textarea{font-size:16px}
+button{touch-action:manipulation}
+html{-webkit-text-size-adjust:100%}
 h1,h2,h3{font-family:var(--f-display);margin:0;text-wrap:balance;letter-spacing:-.01em}
 .wrap{max-width:980px;margin:0 auto}
 .num{font-variant-numeric:tabular-nums}
@@ -114,7 +117,7 @@ tr.tot td{font-weight:700;border-top:2px solid var(--ink)}
 
 /* sheets */
 #modal:empty{display:none}
-.backdrop{position:fixed;inset:0;z-index:50;background:rgba(8,16,12,.55);display:flex;justify-content:center;align-items:flex-end}
+.backdrop{position:fixed;top:0;left:0;right:0;height:100%;height:100dvh;z-index:50;background:rgba(8,16,12,.55);display:flex;justify-content:center;align-items:flex-end}
 .sheet{background:var(--bg);width:min(760px,100%);max-height:100%;height:100%;display:flex;flex-direction:column;border-radius:0}
 @media(min-width:800px){.backdrop{align-items:center;padding:24px}.sheet{height:auto;max-height:100%;border-radius:16px;overflow:hidden}}
 .sheet header{display:flex;align-items:center;gap:10px;padding:calc(12px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) 12px max(16px,env(safe-area-inset-left,0px));background:var(--surface);border-bottom:1px solid var(--line)}
@@ -123,6 +126,8 @@ tr.tot td{font-weight:700;border-top:2px solid var(--ink)}
 .sbody{overflow-y:auto;padding:14px max(16px,env(safe-area-inset-right,0px)) 20px max(16px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:14px;flex:1}
 .sfoot{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;padding:10px max(16px,env(safe-area-inset-right,0px)) calc(10px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));background:var(--surface);border-top:1px solid var(--line)}
 .sfoot .sp{flex:1}
+.sfoot .grow{flex:1 1 120px}
+.btn:disabled{opacity:.6;cursor:default}
 fieldset{border:1px solid var(--line);border-radius:12px;background:var(--surface);padding:12px 14px 14px;margin:0;min-width:0}
 legend{font-family:var(--f-display);font-weight:700;padding:0 6px;font-size:15px}
 .fg{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr))}
@@ -156,6 +161,7 @@ label.ck input{width:20px;height:20px;accent-color:var(--brand)}
 .paper .ih{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;border-bottom:3px solid var(--paper-ink);padding-bottom:12px}
 .paper .meta{text-align:right;font-size:13px}
 .paper .meta b{font-family:var(--f-display);font-size:20px;display:block}
+@media(max-width:520px){.paper .meta{text-align:left}}
 .paper .two{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin:14px 0}
 .paper .lbl{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--paper-muted);font-weight:700}
 .paper th,.paper td{border-bottom:1px solid var(--paper-line);color:var(--paper-ink)}
@@ -197,6 +203,7 @@ label.ck input{width:20px;height:20px;accent-color:var(--brand)}
 </div>
 <div id="modal"></div>
 
+<script async src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
 (function(){
 'use strict';
@@ -551,8 +558,80 @@ function invText(j){const c=cust(j.customerId)||{},s=S.settings,t=totals(j);
  return[`${s.bizName}`,`Invoice ${j.invNo}  ${fmtDate(j.invDate)}`,`Bill to: ${c.name}`,`Service: ${j.type}, ${fmtDate(j.date)}`,'',...j.lines.map(l=>`${l.desc}  ${num(l.qty)} x ${money(num(l.rate))} = ${money(num(l.qty)*num(l.rate))}`),t.tax?`Sales tax ${money(t.tax)}`:'',`Total ${money(t.total)}`,j.status==='paid'?'PAID '+fmtDate(j.paidDate):`Due ${fmtDate(j.dueDate)}`,'',j.invNotes||'',s.terms,s.footer].filter((x,i,a)=>x!==''||a[i-1]!=='').join('\n')}
 function openInvoice(id){const j=job(id);if(!j)return;
  openModal(`<div class="backdrop"><div class="sheet" role="dialog" aria-label="Invoice"><header class="no-print"><h2>Invoice ${esc(j.invNo||'')}</h2><button class="btn sm" data-act="closeModal">Close</button></header>
- <div class="sbody">${invoiceHtml(j)}<p class="hint no-print">Private notes never appear here. Printing works when the app is opened in a regular browser tab.</p></div>
- <div class="sfoot no-print"><button class="btn" data-act="openJob" data-id="${j.id}">Edit job</button><button class="btn" data-act="copyInv" data-id="${j.id}">Copy as text</button><span class="sp"></span>${j.status==='invoiced'?`<button class="btn pri" data-act="payDlg" data-id="${j.id}">Mark paid</button>`:''}<button class="btn ${j.status==='invoiced'?'':'pri'}" data-act="printInv">Print / save PDF</button></div></div></div>`)}
+ <div class="sbody">${invoiceHtml(j)}<p class="hint no-print">Share PDF opens your phone's share sheet so you can text it, email it or save it to Files. Private notes never appear on the invoice.</p></div>
+ <div class="sfoot no-print"><button class="btn pri grow" id="btn-share" data-act="sharePdf" data-id="${j.id}" disabled>Preparing PDF…</button><button class="btn grow" data-act="printInv">Print</button>${j.status==='invoiced'?`<button class="btn grow" data-act="payDlg" data-id="${j.id}">Mark paid</button>`:''}<button class="btn sm" data-act="openJob" data-id="${j.id}">Edit job</button><button class="btn sm" data-act="copyInv" data-id="${j.id}">Copy as text</button></div></div></div>`);prepPdf(j)}
+
+/* ---------- PDF ---------- */
+function pdfName(j){return 'Invoice-'+(j.invNo||'draft')+'-'+cname(j).replace(/[^A-Za-z0-9]+/g,'-').replace(/^-+|-+$/g,'')+'.pdf'}
+function pdfImg(src,max,q){return new Promise(res=>{const im=new Image();im.onload=()=>{const s=Math.min(1,max/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*s);c.height=Math.round(im.height*s);c.getContext('2d').drawImage(im,0,0,c.width,c.height);res({d:c.toDataURL('image/jpeg',q||.8),w:c.width,h:c.height})};im.onerror=()=>res(null);im.src=src})}
+async function buildPdf(j){
+ const lib=window.jspdf&&window.jspdf.jsPDF;if(!lib)throw new Error('PDF library not loaded');
+ const c=cust(j.customerId)||{name:'',address:'',phone:''},s=S.settings,t=totals(j),tr=j.treatment||{};
+ const doc=new lib({unit:'pt',format:'letter'});
+ const W=612,H=792,M=44,R=W-M,BOT=H-56;let y=0;
+ const ink=()=>doc.setTextColor(26,26,26),grey=()=>doc.setTextColor(100,100,100);
+ const need=h=>{if(y+h>BOT){doc.addPage();y=M}};
+ const wrap=(txt,w)=>doc.splitTextToSize(String(txt==null?'':txt),w);
+ const label=(txt,x,yy)=>{doc.setFont('helvetica','bold');doc.setFontSize(8);grey();doc.text(String(txt).toUpperCase(),x,yy)};
+ doc.setFillColor(198,196,197);doc.rect(0,0,W,98,'F');doc.setFillColor(205,14,34);doc.rect(0,0,W,5,'F');
+ try{doc.addImage(LOGO,'JPEG',M,14,190,76)}catch(e){}
+ ink();doc.setFont('helvetica','bold');doc.setFontSize(24);doc.text('INVOICE',R,48,{align:'right'});
+ doc.setFontSize(12);doc.text(j.invNo||'(draft)',R,68,{align:'right'});
+ y=126;const top=y;
+ doc.setFont('helvetica','bold');doc.setFontSize(12);ink();doc.text(s.bizName||'',M,y);y+=15;
+ doc.setFont('helvetica','normal');doc.setFontSize(10);
+ [s.address,[s.phone,s.email].filter(Boolean).join('  |  '),s.license?'Applicator license '+s.license:''].filter(Boolean).forEach(l=>{wrap(l,300).forEach(x=>{doc.text(x,M,y);y+=13})});
+ let ry=top;doc.setFontSize(10);
+ [['Invoice date',fmtDate(j.invDate||today())],j.status==='paid'?['Paid',fmtDate(j.paidDate)]:['Due',fmtDate(j.dueDate||addDays(j.invDate||today(),num(s.dueDays)))]].forEach(p=>{doc.setFont('helvetica','normal');grey();doc.text(p[0],R-120,ry);ink();doc.setFont('helvetica','bold');doc.text(p[1],R,ry,{align:'right'});ry+=14});
+ if(j.status==='paid'){doc.setDrawColor(27,117,71);doc.setLineWidth(1.6);doc.setTextColor(27,117,71);doc.setFont('helvetica','bold');doc.setFontSize(14);doc.roundedRect(R-70,ry+2,70,24,3,3,'S');doc.text('PAID',R-35,ry+19,{align:'center'});ry+=28;ink()}
+ y=Math.max(y,ry)+18;
+ label('Bill to',M,y);label('Service performed',W/2+10,y);y+=14;
+ doc.setFontSize(11);doc.setFont('helvetica','bold');ink();doc.text(c.name||'',M,y);
+ doc.setFont('helvetica','normal');doc.text(j.type||'',W/2+10,y);
+ let ly=y+14,ry2=y+14;doc.setFontSize(10);
+ wrap(c.address||'',240).forEach(x=>{doc.text(x,M,ly);ly+=13});if(c.phone){doc.text(c.phone,M,ly);ly+=13}
+ doc.text(fmtDate(j.date)+(j.time?' at '+fmtTime(j.time):''),W/2+10,ry2);ry2+=13;wrap(j.address||'',240).forEach(x=>{doc.text(x,W/2+10,ry2);ry2+=13});
+ y=Math.max(ly,ry2)+14;
+ const cQ=R-190,cP=R-100,cA=R;
+ doc.setDrawColor(26,26,26);doc.setLineWidth(1.5);doc.line(M,y,R,y);y+=14;
+ label('Description',M,y);
+ doc.setFont('helvetica','bold');doc.setFontSize(8);grey();doc.text('QTY',cQ,y,{align:'right'});doc.text('PRICE',cP,y,{align:'right'});doc.text('AMOUNT',cA,y,{align:'right'});
+ y+=6;doc.setDrawColor(200,200,200);doc.setLineWidth(.7);doc.line(M,y,R,y);y+=15;
+ doc.setFontSize(10);
+ j.lines.forEach(l=>{const d=wrap(l.desc,cQ-M-50);const h=d.length*13+6;need(h);
+  doc.setFont('helvetica','normal');ink();d.forEach((x,i)=>doc.text(x,M,y+i*13));
+  doc.text(String(num(l.qty)),cQ,y,{align:'right'});doc.text(money(num(l.rate)),cP,y,{align:'right'});doc.text(money(num(l.qty)*num(l.rate)),cA,y,{align:'right'});
+  y+=h-2;doc.setDrawColor(225,225,225);doc.line(M,y,R,y);y+=13});
+ need(70);y+=2;
+ const tl=(a,b,bold)=>{doc.setFont('helvetica',bold?'bold':'normal');doc.setFontSize(bold?12:10);ink();doc.text(a,cP-30,y,{align:'right'});doc.text(b,cA,y,{align:'right'});y+=bold?18:14};
+ tl('Subtotal',money(t.sub));if(t.tax)tl('Sales tax',money(t.tax));
+ doc.setDrawColor(26,26,26);doc.setLineWidth(1.2);doc.line(cP-110,y-8,R,y-8);y+=4;tl(j.status==='paid'?'Total paid':'Total due',money(t.total),true);
+ y+=8;
+ const box=(title,rows)=>{const lines=[];rows.forEach(r=>{wrap(r,R-M-24).forEach(x=>lines.push(x))});const h=lines.length*13+30;need(h+8);
+  doc.setDrawColor(200,200,200);doc.setLineWidth(.8);doc.roundedRect(M,y,R-M,h,4,4,'S');label(title,M+12,y+16);doc.setFont('helvetica','normal');doc.setFontSize(10);ink();lines.forEach((x,i)=>doc.text(x,M+12,y+32+i*13));y+=h+12};
+ const hasT=j.showTreat&&[tr.pests,tr.product,tr.epa,tr.amount,tr.method,tr.areas].some(Boolean);
+ if(hasT)box('Treatment record',[['Pests targeted',tr.pests],['Product',tr.product],['EPA reg. no.',tr.epa],['Amount applied',tr.amount],['Method',tr.method],['Areas treated',tr.areas]].filter(x=>x[1]).map(x=>x[0]+': '+x[1]));
+ if(j.invNotes)box('Notes',String(j.invNotes).split('\n'));
+ const pp=photosOf(j.id).filter(p=>p.onInvoice);
+ if(pp.length){need(40);label('Photos',M,y);y+=10;const cw=(R-M-14)/2;
+  const imgs=[];for(const p of pp){const o=await pdfImg(p.data,1100,.78);if(o)imgs.push({o,cap:p.caption||''})}
+  for(let i=0;i<imgs.length;i+=2){const row=imgs.slice(i,i+2).map(x=>{const sc=Math.min(cw/x.o.w,200/x.o.h);return{x,w:x.o.w*sc,h:x.o.h*sc,cap:wrap(x.cap,cw)}});
+   const rh=Math.max(...row.map(r=>r.h+(r.cap.length?r.cap.length*10+4:0)))+10;need(rh);
+   row.forEach((r,k)=>{const x=M+k*(cw+14);doc.addImage(r.x.o.d,'JPEG',x,y,r.w,r.h);if(r.cap.length){doc.setFont('helvetica','normal');doc.setFontSize(8);grey();r.cap.forEach((l,n)=>doc.text(l,x,y+r.h+10+n*10))}});y+=rh}}
+ const tail=wrap(s.terms||'',R-M),foot=wrap(s.footer||'',R-M);
+ need(tail.length*12+foot.length*12+18);y+=6;
+ doc.setFont('helvetica','normal');doc.setFontSize(9);grey();tail.forEach(x=>{doc.text(x,M,y);y+=12});y+=4;foot.forEach(x=>{doc.text(x,M,y);y+=12});
+ const n=doc.getNumberOfPages();
+ for(let i=1;i<=n;i++){doc.setPage(i);doc.setFont('helvetica','normal');doc.setFontSize(8);grey();doc.text((s.bizName||'')+'  |  Invoice '+(j.invNo||''),M,H-28);doc.text('Page '+i+' of '+n,R,H-28,{align:'right'})}
+ return doc.output('blob')}
+let PDF={id:'',file:null,err:false};
+function setShareBtn(){const b=document.getElementById('btn-share');if(!b)return;b.disabled=!PDF.file&&!PDF.err;b.textContent=(PDF.file||PDF.err)?'Share PDF':'Preparing PDF…'}
+function prepPdf(j){const id=j.id;PDF={id,file:null,err:false};setShareBtn();
+ const go=(tries)=>buildPdf(j).then(b=>{if(PDF.id!==id)return;PDF.file=new File([b],pdfName(j),{type:'application/pdf'});setShareBtn()}).catch(e=>{if(PDF.id!==id)return;if(tries>0){setTimeout(()=>go(tries-1),1200);return}PDF.err=true;setShareBtn()});
+ go(4)}
+async function saveBlob(name,blob){
+ try{if(window.claude&&claude.use){const d=await claude.use('downloads');if(d){await d.save({filename:name,data:blob});return true}}}catch(e){if(e&&e.code==='declined')return false}
+ const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000);return true}
 function payDlg(id){const j=job(id);if(!j)return;
  openModal(`<div class="backdrop" style="align-items:center;padding:16px"><div class="sheet" style="height:auto;border-radius:16px;overflow:hidden" role="dialog" aria-label="Mark paid"><header><h2>Mark ${esc(j.invNo)} paid</h2><button class="btn sm" data-act="closeModal">Cancel</button></header>
  <div class="sbody"><div class="fg"><label class="f">Paid on<input type="date" id="pd-date" value="${today()}"></label><label class="f">Paid by<select id="pd-m">${PAY.map(p=>`<option>${p}</option>`).join('')}</select></label></div><div>${esc(cname(j))} · <b class="num">${money(totals(j).total)}</b></div></div>
@@ -574,6 +653,11 @@ const acts={
  payDlg(el){payDlg(el.dataset.id)},
  savePaid(el){const j=job(el.dataset.id);j.status='paid';j.paidDate=$('#pd-date').value||today();j.payMethod=$('#pd-m').value;persist();closeModal();render();toast('Marked paid')},
  printInv(){try{window.print()}catch(e){}},
+ async sharePdf(el){const j=job(el.dataset.id);if(!j)return;
+  if(PDF.err||!PDF.file){if(PDF.err){toast('Could not build the PDF. Check your connection and try again.');prepPdf(j)}return}
+  const f=PDF.file;
+  try{if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:f.name});return}}catch(e){if(e&&e.name==='AbortError')return}
+  if(await saveBlob(f.name,f))toast('PDF saved')},
  copyInv(el){copyText(invText(job(el.dataset.id)))},
  addLine(){const t=S.settings.jobTypes.find(t=>t.name===D.type);D.lines.push({id:uid(),desc:'',qty:1,rate:t?'':'',tax:true});renderJob()},
  delLine(el){D.lines.splice(+el.dataset.id,1);renderJob()},
