@@ -128,6 +128,12 @@ tr.tot td{font-weight:700;border-top:2px solid var(--ink)}
 .sbody{overflow-y:auto;padding:14px max(16px,env(safe-area-inset-right,0px)) 20px max(16px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:14px;flex:1}
 .sfoot{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;padding:10px max(16px,env(safe-area-inset-right,0px)) calc(10px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));background:var(--surface);border-top:1px solid var(--line)}
 .sfoot .sp{flex:1}
+.acwrap{position:relative}
+.acpop{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:6;background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);max-height:260px;overflow-y:auto}
+.acitem{display:flex;flex-direction:column;align-items:flex-start;gap:1px;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--line);padding:10px 12px;min-height:48px;cursor:pointer}
+.acitem:last-child{border-bottom:0}
+.acitem span{font-size:12px;color:var(--muted);overflow-wrap:anywhere}
+.acitem:hover,.acitem:focus-visible{background:var(--surface2)}
 .sfoot .grow{flex:1 1 120px}
 .btn:disabled{opacity:.6;cursor:default}
 fieldset{border:1px solid var(--line);border-radius:12px;background:var(--surface);padding:12px 14px 14px;margin:0;min-width:0}
@@ -259,6 +265,15 @@ function seed(){
  d.expenses=[{id:uid(),date:addDays(T,-20),cat:'Fuel',amount:61.4,note:'Truck fuel'},{id:uid(),date:addDays(T,-52),cat:'Equipment',amount:129.99,note:'Backpack sprayer parts'}];
  return d}
 function pad4(n){return String(n).padStart(4,'0')}
+function custMatches(q){q=(q||'').trim().toLowerCase();let l=S.customers.slice().sort((a,b)=>a.name.localeCompare(b.name));
+ if(q){l=l.filter(c=>(c.name+' '+(c.phone||'')+' '+(c.address||'')).toLowerCase().includes(q)).sort((a,b)=>(b.name.toLowerCase().startsWith(q)-a.name.toLowerCase().startsWith(q))||a.name.localeCompare(b.name))}
+ return l.slice(0,6)}
+function hideCustPop(){const p=$('#custpop');if(p)p.hidden=true}
+function showCustPop(){const pop=$('#custpop');if(!pop||!D)return;const q=(D.custName||'').trim(),m=custMatches(q);
+ if(!m.length||(m.length===1&&m[0].name.toLowerCase()===q.toLowerCase())){pop.hidden=true;return}
+ const html=m.map(c=>`<button type="button" class="acitem" data-act="pickCust" data-id="${c.id}"><b>${esc(c.name)}</b><span>${esc(c.address||c.phone||'')}</span></button>`).join('');if(pop.dataset.h!==html){pop.innerHTML=html;pop.dataset.h=html}pop.hidden=false}
+function setSiteAddr(c){if(!c||!c.address)return;if(!D.address||D.address===D._auto){D.address=c.address;D._auto=c.address;const a=document.querySelector('[data-f=address]');if(a)a.value=c.address}}
+
 function fmtPhoneLive(v){let d=String(v||'').replace(/\D/g,'');if(d.length>10&&d[0]==='1')d=d.slice(1);d=d.slice(0,10);
  if(!d)return '';if(d.length<=3)return '('+d;if(d.length<=6)return '('+d.slice(0,3)+') '+d.slice(3);return '('+d.slice(0,3)+') '+d.slice(3,6)+'-'+d.slice(6)}
 function fmtPhoneSave(v){v=String(v||'').trim();const d=v.replace(/\D/g,'');return d.length>=10?fmtPhoneLive(v):v}
@@ -461,7 +476,7 @@ function vSet(){const s=S.settings;
  <label class="ck" style="margin-top:8px"><input type="checkbox" data-sc="showDashboard" ${s.showDashboard?'checked':''}> Show the Dashboard tab</label></fieldset>
  <fieldset><legend>Backup</legend><p class="hint" style="margin-top:0">Data and photos live in this browser on this device. Save a backup regularly and before changing phones or clearing browser data. The backup is an HTML file you can open and read, and Restore reads it back.</p>
  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn pri" data-act="backup">Save backup</button><label class="btn" style="cursor:pointer">Restore from backup<input type="file" id="restore" accept=".html,.htm,.json,text/html,application/json" hidden></label></div></fieldset>
- <p class="hint" style="text-align:center">Bloom Pest Control app, version 2026-11-07 e</p>
+ <p class="hint" style="text-align:center">Bloom Pest Control app, version 2026-11-07 f</p>
  <fieldset><legend>Reset</legend><div style="display:flex;gap:8px;flex-wrap:wrap">${S.sample?'<button class="btn" data-act="clearSample">Clear example data</button>':''}<button class="btn bad" data-act="resetAll" data-arm="1">Erase everything</button></div></fieldset>`}
 
 /* ---------- modal plumbing ---------- */
@@ -484,8 +499,7 @@ function renderJob(){const y=sbodyTop(),j=D,tt=totals(Object.assign({},j,{custom
  openModal(`<div class="backdrop"><div class="sheet" role="dialog" aria-label="Job"><header><h2>${DNEW?'New job':esc(j.custName||'Job')}</h2>${j.invNo?`<span class="chip">${esc(j.invNo)}</span>`:''}<button class="btn sm" data-act="closeJob">Close</button></header>
  <div class="sbody">
  <fieldset><legend>Customer and site</legend><div class="fg">
-  <label class="f wide">Customer<input id="f-cust" data-f="custName" list="custlist" value="${esc(j.custName)}" placeholder="Type a name. Pick an existing customer or enter a new one" autocomplete="off"></label>
-  <datalist id="custlist">${S.customers.map(c=>`<option value="${esc(c.name)}">`).join('')}</datalist>
+  <div class="wide acwrap"><label class="f">Customer<input id="f-cust" data-f="custName" value="${esc(j.custName)}" placeholder="Type a customer name" autocomplete="off" autocorrect="off" autocapitalize="words" spellcheck="false"></label><div id="custpop" class="acpop" hidden></div></div>
   <div class="wide" id="newbox" ${mc?'hidden':''}><div class="hint" style="margin:0 0 6px">New customer. They are added to Customers when you save.</div><label class="f">Phone<input data-f="newPhone" value="${esc(j.newPhone)}" inputmode="tel" placeholder="(555) 555-5555"></label></div>
   <label class="f wide">Service address<input data-f="address" value="${esc(j.address)}"></label>
   ${gps}<div class="wide"><button class="btn sm" data-act="useLoc">Save my current location for this job</button></div></div></fieldset>
@@ -530,7 +544,7 @@ function saveJob(thenInvoice){
  let c=matchCust(name);
  if(!c){c={id:uid(),name,kind:'Home',phone:fmtPhoneSave(D.newPhone||''),email:'',address:D.address||'',taxExempt:false,notes:''};S.customers.push(c)}
  else if(!c.address&&D.address)c.address=D.address;
- const j=JSON.parse(JSON.stringify(D));j.customerId=c.id;delete j.custName;delete j.newPhone;delete j._prevType;
+ const j=JSON.parse(JSON.stringify(D));j.customerId=c.id;delete j.custName;delete j.newPhone;delete j._prevType;delete j._auto;
  j.lines=j.lines.filter(l=>String(l.desc).trim()||num(l.rate)).map(l=>({id:l.id,desc:l.desc,qty:num(l.qty),rate:num(l.rate),tax:!!l.tax}));
  if(!j.loc){const p=photosOf(j.id).find(p=>p.lat!=null);if(p)j.loc={lat:p.lat,lon:p.lon,src:'photo'}}
  if(thenInvoice)j.status='invoiced';
@@ -672,6 +686,7 @@ const acts={
  viewInv(el){openInvoice(el.dataset.id)},
  payDlg(el){payDlg(el.dataset.id)},
  savePaid(el){const j=job(el.dataset.id);j.status='paid';j.paidDate=$('#pd-date').value||today();j.payMethod=$('#pd-m').value;persist();closeModal();render();toast('Marked paid')},
+ pickCust(el){const c=cust(el.dataset.id);if(!c||!D)return;D.custName=c.name;const i=$('#f-cust');if(i)i.value=c.name;setSiteAddr(c);$('#newbox').hidden=true;hideCustPop();refreshTotals()},
  printInv(){try{window.print()}catch(e){}},
  async sharePdf(el){const j=job(el.dataset.id);if(!j)return;
   if(PDF.err||!PDF.file){if(PDF.err){toast('Could not build the PDF. Check your connection and try again.');prepPdf(j)}return}
@@ -709,7 +724,7 @@ const acts={
  resetAll(el){if(!arm(el,'Tap again to erase everything'))return;idbClear();P=[];S=defaults();S.tab='upcoming';persist();render();toast('All data erased')}
 };
 function arm(el,label){if(el.dataset.armed){return true}el.dataset.armed='1';const o=el.textContent;el.textContent=label;setTimeout(()=>{if(el.isConnected){delete el.dataset.armed;el.textContent=o}},3500);return false}
-document.addEventListener('click',e=>{const el=e.target.closest('[data-act]');if(!el)return;if(el.tagName==='SELECT')return;const f=acts[el.dataset.act];if(f){e.preventDefault();f(el)}});
+document.addEventListener('click',e=>{if(!e.target.closest('.acwrap'))hideCustPop();const el=e.target.closest('[data-act]');if(!el)return;if(el.tagName==='SELECT')return;const f=acts[el.dataset.act];if(f){e.preventDefault();f(el)}});
 function setPath(o,p,v){const a=p.split('.');while(a.length>1)o=o[a.shift()];o[a[0]]=v}
 function onField(e){const t=e.target;
  if(e.type==='input'){if(t.id==='cu-phone'||t.dataset.f==='newPhone'||t.dataset.s==='phone'){const v=fmtPhoneLive(t.value);if(v!==t.value)t.value=v}else if(t.id==='cu-state'){const v=t.value.toUpperCase().replace(/[^A-Z]/g,'');if(v!==t.value)t.value=v}}
@@ -724,7 +739,7 @@ function onField(e){const t=e.target;
  if(t.dataset.pi){const p=P.find(p=>p.id===t.dataset.pi);if(p){p.onInvoice=t.checked;idbPut(p)}return}
  if(t.id==='cam'||t.id==='lib'){if(e.type==='change')addPhotos(t.files,t.id==='cam');return}
  if(t.dataset.f!==undefined){const k=t.dataset.f;setPath(D,k,t.type==='checkbox'?t.checked:t.value);
-  if(k==='custName'){const c=matchCust(D.custName);$('#newbox').hidden=!!c;if(c&&!D.address){D.address=c.address;const a=document.querySelector('[data-f=address]');if(a)a.value=c.address}refreshTotals()}
+  if(k==='custName'){const c=matchCust(D.custName);$('#newbox').hidden=!!c;if(c)setSiteAddr(c);if(e.type==='input')showCustPop();refreshTotals()}
   else if(k==='type'&&e.type==='change'){const nt=S.settings.jobTypes.find(x=>x.name===D.type),pt=S.settings.jobTypes.find(x=>x.name===D._prevType);
    if(D.lines.length===1&&pt&&D.lines[0].desc===pt.name&&num(D.lines[0].rate)===num(pt.rate)&&nt){D.lines[0].desc=nt.name;D.lines[0].rate=nt.rate}D._prevType=D.type;renderJob()}
   else if(k==='status'){renderJob()}
@@ -732,6 +747,7 @@ function onField(e){const t=e.target;
  if(t.dataset.t){D.treatment[t.dataset.t]=t.value;return}
  if(t.dataset.c){D.costs[t.dataset.c]=t.value;return}
   if(t.dataset.l!==undefined){const l=D.lines[+t.dataset.l];l[t.dataset.k]=t.type==='checkbox'?t.checked:t.value;refreshTotals()}}
+document.addEventListener('focusin',e=>{if(e.target.id==='f-cust')showCustPop()});
 document.addEventListener('input',onField);document.addEventListener('change',onField);
 async function addPhotos(files,fromCam){if(!files||!files.length)return;let n=0;
  for(const f of Array.from(files)){try{const buf=await f.arrayBuffer();const ex=exifRead(buf);const data=await shrink(f,1600);
