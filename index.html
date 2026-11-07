@@ -49,10 +49,12 @@ h1,h2,h3{font-family:var(--f-display);margin:0;text-wrap:balance;letter-spacing:
 .top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;margin-inline:calc(-1*max(16px,env(safe-area-inset-left,0px))) ;padding-inline:max(16px,env(safe-area-inset-left,0px));background:var(--logo-bg);color:var(--logo-ink);border-top:3px solid var(--logo-line);border-bottom:1px solid var(--line)}
 .top .wrap{display:flex;align-items:center;gap:12px;padding-block:8px}
 .brand{display:flex;align-items:center;gap:10px;min-width:0}
-.brand img{display:block;height:56px;width:auto;max-width:100%}
+.brand{flex:none}
+.brand img{display:block;height:56px;width:auto;max-width:none;flex:none}
+@media(max-width:480px){.brand img{height:44px}.top .btn{padding:8px 10px}}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-.plogo{display:block;height:84px;width:auto;max-width:100%;margin-bottom:8px}
-.top .grow{flex:1}
+.plogo{display:block;height:84px;width:auto;max-width:none;margin-bottom:8px}
+.top .grow{flex:1;min-width:0}
 .btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:9px 14px;font-weight:600;cursor:pointer;min-height:40px}
 .btn:hover{background:var(--surface2)}
 .btn.pri{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
