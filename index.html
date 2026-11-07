@@ -128,6 +128,10 @@ tr.tot td{font-weight:700;border-top:2px solid var(--ink)}
 .sbody{overflow-y:auto;padding:14px max(16px,env(safe-area-inset-right,0px)) 20px max(16px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:14px;flex:1}
 .sfoot{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;padding:10px max(16px,env(safe-area-inset-right,0px)) calc(10px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));background:var(--surface);border-top:1px solid var(--line)}
 .sfoot .sp{flex:1}
+.sheet.kb .sfoot{display:none}
+.sfoot-inline{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin-top:4px;padding-bottom:12px}
+.sfoot-inline .grow{flex:1 1 120px}
+.sfoot-inline .sp{flex:1}
 .acwrap{position:relative}
 .acpop{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:6;background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);max-height:260px;overflow-y:auto}
 .acitem{display:flex;flex-direction:column;align-items:flex-start;gap:1px;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--line);padding:10px 12px;min-height:48px;cursor:pointer}
@@ -476,7 +480,7 @@ function vSet(){const s=S.settings;
  <label class="ck" style="margin-top:8px"><input type="checkbox" data-sc="showDashboard" ${s.showDashboard?'checked':''}> Show the Dashboard tab</label></fieldset>
  <fieldset><legend>Backup</legend><p class="hint" style="margin-top:0">Data and photos live in this browser on this device. Save a backup regularly and before changing phones or clearing browser data. The backup is an HTML file you can open and read, and Restore reads it back.</p>
  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn pri" data-act="backup">Save backup</button><label class="btn" style="cursor:pointer">Restore from backup<input type="file" id="restore" accept=".html,.htm,.json,text/html,application/json" hidden></label></div></fieldset>
- <p class="hint" style="text-align:center">Bloom Pest Control app, version 2026-11-07 f</p>
+ <p class="hint" style="text-align:center">Bloom Pest Control app, version 2026-11-07 g</p>
  <fieldset><legend>Reset</legend><div style="display:flex;gap:8px;flex-wrap:wrap">${S.sample?'<button class="btn" data-act="clearSample">Clear example data</button>':''}<button class="btn bad" data-act="resetAll" data-arm="1">Erase everything</button></div></fieldset>`}
 
 /* ---------- modal plumbing ---------- */
@@ -747,6 +751,15 @@ function onField(e){const t=e.target;
  if(t.dataset.t){D.treatment[t.dataset.t]=t.value;return}
  if(t.dataset.c){D.costs[t.dataset.c]=t.value;return}
   if(t.dataset.l!==undefined){const l=D.lines[+t.dataset.l];l[t.dataset.k]=t.type==='checkbox'?t.checked:t.value;refreshTotals()}}
+let kbT=null,ptrDown=false;
+function syncKb(){const sh=document.querySelector('#modal .sheet');if(!sh)return;const a=document.activeElement;
+ const typing=!!(a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)&&!/^(checkbox|radio|file|button|submit)$/.test(a.type||'')&&sh.contains(a));
+ if(typing){sh.classList.add('kb');if(!sh.querySelector('.sfoot-inline')){const f=sh.querySelector('.sfoot');if(f){const c=f.cloneNode(true);c.className='sfoot-inline';c.querySelectorAll('[id]').forEach(x=>x.removeAttribute('id'));const b=sh.querySelector('.sbody');if(b)b.appendChild(c)}}}
+ else if(!ptrDown){sh.classList.remove('kb');const c=sh.querySelector('.sfoot-inline');if(c)c.remove()}}
+document.addEventListener('focusin',()=>{clearTimeout(kbT);syncKb()});
+document.addEventListener('focusout',()=>{clearTimeout(kbT);kbT=setTimeout(syncKb,250)});
+document.addEventListener('pointerdown',e=>{ptrDown=!!e.target.closest('.sfoot-inline')},true);
+document.addEventListener('pointerup',()=>{if(ptrDown)setTimeout(()=>{ptrDown=false;syncKb()},500)},true);
 document.addEventListener('focusin',e=>{if(e.target.id==='f-cust')showCustPop()});
 document.addEventListener('input',onField);document.addEventListener('change',onField);
 async function addPhotos(files,fromCam){if(!files||!files.length)return;let n=0;
