@@ -539,7 +539,7 @@ function openCust(id){const c=id?cust(id):{id:'',name:'',kind:'Home',phone:'',em
   <label class="ck" style="margin-top:10px"><input type="checkbox" id="cu-tx" ${c.taxExempt?'checked':''}> Tax exempt (for example farms or schools)</label></fieldset>
  ${id?`<fieldset><legend>Job and spray history</legend>${js.length?`<div class="hist">${js.map(j=>{const t=j.treatment||{};const det=[t.pests&&'Pests: '+t.pests,t.product&&'Product: '+t.product,t.method].filter(Boolean).join(' · ');
   return`<div data-act="openJob" data-id="${j.id}"><b>${fmtDate(j.date)}</b> · ${esc(j.type)} · ${j.status} · <span class="num">${money(totals(j).total)}</span>${det?`<div class="sub" style="color:var(--muted);font-size:13px">${esc(det)}</div>`:''}</div>`}).join('')}</div>`:'<div class="empty">No jobs yet.</div>'}</fieldset>`:''}</div>
- <div class="sfoot">${id?'<button class="btn bad" data-act="delCust" data-id="'+id+'" data-arm="1">Delete</button>':''}<span class="sp"></span>${id?`<button class="btn" data-act="newJobFor" data-id="${id}">+ New job</button>`:''}<button class="btn pri" data-act="saveCust" data-id="${id}">Save</button></div></div></div>`)}
+ <div class="sfoot">${id?'<button class="btn bad" data-act="delCust" data-id="'+id+'" data-arm="1">Delete</button>':''}<span class="sp"></span>${id?`<button class="btn" data-act="newJobFor" data-id="${id}">+ New job</button>`:''}<button class="btn pri" data-act="saveCust" data-id="${id||''}">Save</button></div></div></div>`)}
 
 /* ---------- invoice ---------- */
 function invoiceHtml(j){const c=cust(j.customerId)||{name:'',address:''},s=S.settings,t=totals(j),tr=j.treatment||{};
@@ -670,9 +670,9 @@ const acts={
  openCust(el){closeModal();openCust(el.dataset.id)},
  saveCust(el){const name=$('#cu-name').value.trim();if(!name){toast('Enter a name');return}
   const dup=S.customers.find(c=>c.name.toLowerCase()===name.toLowerCase()&&c.id!==el.dataset.id);if(dup){toast('A customer with that name already exists');return}
-  let c=el.dataset.id?cust(el.dataset.id):{id:uid()};
+  let c=el.dataset.id?cust(el.dataset.id):null;const isNew=!c;if(isNew)c={id:uid()};
   Object.assign(c,{name,kind:$('#cu-kind').value,phone:$('#cu-phone').value,email:$('#cu-email').value,address:$('#cu-addr').value,notes:$('#cu-notes').value,taxExempt:$('#cu-tx').checked});
-  if(!el.dataset.id)S.customers.push(c);persist();closeModal();render();toast('Customer saved')},
+  if(isNew)S.customers.push(c);persist();closeModal();render();toast('Customer saved')},
  delCust(el){const id=el.dataset.id;if(S.jobs.some(j=>j.customerId===id)){toast('This customer has jobs. Delete or move those jobs first.');return}if(!arm(el,'Tap again to delete'))return;S.customers=S.customers.filter(c=>c.id!==id);persist();closeModal();render()},
  taxYear(el){},
  addExp(){const a=num($('#xa').value);if(!a){toast('Enter an amount');return}S.expenses.push({id:uid(),date:$('#xd').value||today(),cat:$('#xc').value,amount:a,note:$('#xn').value});persist();render();toast('Expense added')},
