@@ -259,6 +259,20 @@ function seed(){
  d.expenses=[{id:uid(),date:addDays(T,-20),cat:'Fuel',amount:61.4,note:'Truck fuel'},{id:uid(),date:addDays(T,-52),cat:'Equipment',amount:129.99,note:'Backpack sprayer parts'}];
  return d}
 function pad4(n){return String(n).padStart(4,'0')}
+function fmtPhoneLive(v){let d=String(v||'').replace(/\D/g,'');if(d.length>10&&d[0]==='1')d=d.slice(1);d=d.slice(0,10);
+ if(!d)return '';if(d.length<=3)return '('+d;if(d.length<=6)return '('+d.slice(0,3)+') '+d.slice(3);return '('+d.slice(0,3)+') '+d.slice(3,6)+'-'+d.slice(6)}
+function fmtPhoneSave(v){v=String(v||'').trim();const d=v.replace(/\D/g,'');return d.length>=10?fmtPhoneLive(v):v}
+function composeAddr(c){const cs=[[c.city,c.state].filter(Boolean).join(', '),c.zip].filter(Boolean).join(' ');return [c.street,cs].filter(Boolean).join(', ')}
+function addrLines(c){if(c&&(c.street||c.city||c.state||c.zip)){const cs=[[c.city,c.state].filter(Boolean).join(', '),c.zip].filter(Boolean).join(' ');return [c.street,cs].filter(Boolean)}return c&&c.address?[c.address]:[]}
+function backupHtml(){
+ const data=JSON.stringify({app:'bloom-pest-control',saved:new Date().toISOString(),data:S,photos:P}).replace(/</g,'\\u003c');
+ const T=(h,rows)=>'<table><thead><tr>'+h.map(x=>'<th>'+x+'</th>').join('')+'</tr></thead><tbody>'+(rows.length?rows.map(r=>'<tr>'+r.map(x=>'<td>'+esc(x)+'</td>').join('')+'</tr>').join(''):'<tr><td colspan="'+h.length+'">None</td></tr>')+'</tbody></table>';
+ const cs=S.customers.slice().sort((a,b)=>a.name.localeCompare(b.name)).map(c=>[c.name,c.kind,c.phone,c.email,c.address,c.taxExempt?'Yes':'',c.notes]);
+ const js=S.jobs.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(j=>{const t=j.treatment||{};return[j.date,cname(j),j.type,j.status,j.invNo,money(totals(j).total),j.paidDate,[t.pests,t.product].filter(Boolean).join(' / '),j.notes,photosOf(j.id).length||'']});
+ const ex=S.expenses.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(e=>[e.date,e.cat,money(e.amount),e.note]);
+ return '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Bloom Pest Control backup '+today()+'</title><style>body{font:14px system-ui,sans-serif;margin:24px;color:#16261e;max-width:1100px}h1{margin:0 0 4px}h2{margin:28px 0 6px}p{color:#58695f}table{border-collapse:collapse;width:100%}th,td{border-bottom:1px solid #d1dcd2;padding:6px 8px;text-align:left;vertical-align:top;font-size:13px}th{font-size:11px;text-transform:uppercase;color:#58695f}</style></head><body><h1>Bloom Pest Control backup</h1><p>Saved '+esc(fmtDate(today()))+'. To restore, open the app, go to Settings, tap Restore from backup and choose this file. Photos are stored inside the file.</p><h2>Customers ('+cs.length+')</h2>'+T(['Name','Type','Phone','Email','Address','Tax exempt','Notes'],cs)+'<h2>Jobs ('+js.length+')</h2>'+T(['Date','Customer','Type','Status','Invoice','Total','Paid','Treated','Private notes','Photos'],js)+'<h2>Expenses ('+ex.length+')</h2>'+T(['Date','Category','Amount','Note'],ex)+'<script id="bloom-data" type="application/json">'+data+'<\/script></body></html>'}
+function parseBackup(txt){const m=String(txt).match(/<script id="bloom-data" type="application\/json">([\s\S]*?)<\/script>/);return JSON.parse(m?m[1]:txt)}
+
 let S=load();
 let P=[]; // photos in memory
 let idb=null;
@@ -445,9 +459,9 @@ function vSet(){const s=S.settings;
  <p class="hint">Check the current IRS standard mileage rate each year and update it here.</p>
  <label class="ck" style="margin-top:8px"><input type="checkbox" data-sc="tagLocation" ${s.tagLocation?'checked':''}> Tag photos taken in the app with this device's location when allowed</label>
  <label class="ck" style="margin-top:8px"><input type="checkbox" data-sc="showDashboard" ${s.showDashboard?'checked':''}> Show the Dashboard tab</label></fieldset>
- <fieldset><legend>Backup</legend><p class="hint" style="margin-top:0">Data and photos live in this browser on this device. Download a backup regularly and before changing phones or clearing browser data.</p>
- <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn pri" data-act="backup">Download backup</button><label class="btn" style="cursor:pointer">Restore from backup<input type="file" id="restore" accept=".json,application/json" hidden></label></div></fieldset>
- <p class="hint" style="text-align:center">Bloom Pest Control app, version 2026-11-07 d</p>
+ <fieldset><legend>Backup</legend><p class="hint" style="margin-top:0">Data and photos live in this browser on this device. Save a backup regularly and before changing phones or clearing browser data. The backup is an HTML file you can open and read, and Restore reads it back.</p>
+ <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn pri" data-act="backup">Save backup</button><label class="btn" style="cursor:pointer">Restore from backup<input type="file" id="restore" accept=".html,.htm,.json,text/html,application/json" hidden></label></div></fieldset>
+ <p class="hint" style="text-align:center">Bloom Pest Control app, version 2026-11-07 e</p>
  <fieldset><legend>Reset</legend><div style="display:flex;gap:8px;flex-wrap:wrap">${S.sample?'<button class="btn" data-act="clearSample">Clear example data</button>':''}<button class="btn bad" data-act="resetAll" data-arm="1">Erase everything</button></div></fieldset>`}
 
 /* ---------- modal plumbing ---------- */
@@ -472,7 +486,7 @@ function renderJob(){const y=sbodyTop(),j=D,tt=totals(Object.assign({},j,{custom
  <fieldset><legend>Customer and site</legend><div class="fg">
   <label class="f wide">Customer<input id="f-cust" data-f="custName" list="custlist" value="${esc(j.custName)}" placeholder="Type a name. Pick an existing customer or enter a new one" autocomplete="off"></label>
   <datalist id="custlist">${S.customers.map(c=>`<option value="${esc(c.name)}">`).join('')}</datalist>
-  <div class="wide" id="newbox" ${mc?'hidden':''}><div class="hint" style="margin:0 0 6px">New customer. They are added to Customers when you save.</div><label class="f">Phone<input data-f="newPhone" value="${esc(j.newPhone)}" inputmode="tel"></label></div>
+  <div class="wide" id="newbox" ${mc?'hidden':''}><div class="hint" style="margin:0 0 6px">New customer. They are added to Customers when you save.</div><label class="f">Phone<input data-f="newPhone" value="${esc(j.newPhone)}" inputmode="tel" placeholder="(555) 555-5555"></label></div>
   <label class="f wide">Service address<input data-f="address" value="${esc(j.address)}"></label>
   ${gps}<div class="wide"><button class="btn sm" data-act="useLoc">Save my current location for this job</button></div></div></fieldset>
  <fieldset><legend>Schedule</legend><div class="fg">
@@ -506,7 +520,7 @@ function renderJob(){const y=sbodyTop(),j=D,tt=totals(Object.assign({},j,{custom
   ${j.status!=='upcoming'?`<label class="f">Invoice date<input type="date" data-f="invDate" value="${esc(j.invDate||today())}"></label><label class="f">Due date<input type="date" data-f="dueDate" value="${esc(j.dueDate||addDays(j.invDate||today(),num(S.settings.dueDays)))}"></label>`:''}
   ${j.status==='paid'?`<label class="f">Paid on<input type="date" data-f="paidDate" value="${esc(j.paidDate||today())}"></label><label class="f">Paid by<select data-f="payMethod">${PAY.map(p=>`<option ${p===j.payMethod?'selected':''}>${p}</option>`).join('')}</select></label>`:''}</div></fieldset>
  </div>
- <div class="sfoot">${DNEW?'':'<button class="btn bad" data-act="delJob" data-arm="1">Delete job</button>'}<span class="sp"></span><button class="btn" data-act="closeJob">Cancel</button>${j.status==='upcoming'?'<button class="btn" data-act="saveJob">Save</button><button class="btn pri" data-act="saveInvJob">Save &amp; invoice</button>':'<button class="btn pri" data-act="saveJob">Save</button>'}</div></div></div>`);
+ <div class="sfoot">${DNEW?'':'<button class="btn bad" data-act="delJob" data-arm="1">Delete job</button>'}<span class="sp"></span><button class="btn" data-act="closeJob">Cancel</button>${j.status==='upcoming'?(DNEW?'<button class="btn grow" data-act="saveJob">Schedule job</button><button class="btn pri grow" data-act="saveInvJob">Save &amp; invoice</button>':'<button class="btn" data-act="saveJob">Save</button><button class="btn pri" data-act="saveInvJob">Save &amp; invoice</button>'):'<button class="btn pri" data-act="saveJob">Save</button>'}</div></div></div>`);
  setTop(y)}
 function refreshTotals(){const c=matchCust(D.custName);const t=totals(Object.assign({},D,{customerId:c?c.id:''}));
  $('#t-sub').textContent=money(t.sub);$('#t-tax').textContent=money(t.tax);$('#t-tot').textContent=money(t.total);
@@ -514,7 +528,7 @@ function refreshTotals(){const c=matchCust(D.custName);const t=totals(Object.ass
 function saveJob(thenInvoice){
  const name=(D.custName||'').trim();if(!name){toast('Enter a customer name');return false}if(!D.date){toast('Pick a date');return false}
  let c=matchCust(name);
- if(!c){c={id:uid(),name,kind:'Home',phone:D.newPhone||'',email:'',address:D.address||'',taxExempt:false,notes:''};S.customers.push(c)}
+ if(!c){c={id:uid(),name,kind:'Home',phone:fmtPhoneSave(D.newPhone||''),email:'',address:D.address||'',taxExempt:false,notes:''};S.customers.push(c)}
  else if(!c.address&&D.address)c.address=D.address;
  const j=JSON.parse(JSON.stringify(D));j.customerId=c.id;delete j.custName;delete j.newPhone;delete j._prevType;
  j.lines=j.lines.filter(l=>String(l.desc).trim()||num(l.rate)).map(l=>({id:l.id,desc:l.desc,qty:num(l.qty),rate:num(l.rate),tax:!!l.tax}));
@@ -534,8 +548,11 @@ function openCust(id){const c=id?cust(id):{id:'',name:'',kind:'Home',phone:'',em
  <div class="sbody"><fieldset><legend>Details</legend><div class="fg">
   <label class="f wide">Name<input id="cu-name" value="${esc(c.name)}"></label>
   <label class="f">Type<select id="cu-kind">${KINDS.map(k=>`<option ${k===c.kind?'selected':''}>${k}</option>`).join('')}</select></label>
-  <label class="f">Phone<input id="cu-phone" value="${esc(c.phone)}" inputmode="tel"></label><label class="f">Email<input id="cu-email" value="${esc(c.email)}" inputmode="email"></label>
-  <label class="f wide">Address<input id="cu-addr" value="${esc(c.address)}"></label>
+  <label class="f">Phone<input id="cu-phone" value="${esc(c.phone)}" inputmode="tel" placeholder="(555) 555-5555" autocomplete="off"></label><label class="f">Email<input id="cu-email" value="${esc(c.email)}" inputmode="email"></label>
+  <label class="f wide">Street address<input id="cu-street" value="${esc(c.street!=null?c.street:c.address)}" autocomplete="off"></label>
+  <label class="f">City<input id="cu-city" value="${esc(c.city)}" autocomplete="off"></label>
+  <label class="f">State<input id="cu-state" value="${esc(c.state)}" maxlength="2" autocapitalize="characters" placeholder="NE" autocomplete="off"></label>
+  <label class="f">ZIP<input id="cu-zip" value="${esc(c.zip)}" inputmode="numeric" maxlength="10" autocomplete="off"></label>
   <label class="f wide">Private notes<textarea id="cu-notes">${esc(c.notes)}</textarea></label></div>
   <label class="ck" style="margin-top:10px"><input type="checkbox" id="cu-tx" ${c.taxExempt?'checked':''}> Tax exempt (for example farms or schools)</label></fieldset>
  ${id?`<fieldset><legend>Job and spray history</legend>${js.length?`<div class="hist">${js.map(j=>{const t=j.treatment||{};const det=[t.pests&&'Pests: '+t.pests,t.product&&'Product: '+t.product,t.method].filter(Boolean).join(' · ');
@@ -548,7 +565,7 @@ function invoiceHtml(j){const c=cust(j.customerId)||{name:'',address:''},s=S.set
  const pp=photosOf(j.id).filter(p=>p.onInvoice);
  return`<div class="paper"><div class="ih"><div><img class="plogo" src="${LOGO}" alt="${esc(s.bizName)}"><div>${esc(s.address)}</div><div>${[s.phone,s.email].filter(Boolean).map(esc).join(' · ')}</div>${s.license?`<div>Applicator license ${esc(s.license)}</div>`:''}</div>
  <div class="meta"><b>INVOICE ${esc(j.invNo||'(draft)')}</b>Date ${fmtDate(j.invDate||today())}<br>${j.status==='paid'?'':`Due ${fmtDate(j.dueDate||addDays(j.invDate||today(),num(s.dueDays)))}`}${j.status==='paid'?`<br><span class="paid-stamp">PAID ${fmtDate(j.paidDate)}</span>`:''}</div></div>
- <div class="two"><div><div class="lbl">Bill to</div><b>${esc(c.name)}</b><br>${esc(c.address)}${c.phone?'<br>'+esc(c.phone):''}</div><div><div class="lbl">Service performed</div>${esc(j.type)}<br>${fmtDate(j.date)}${j.time?' at '+fmtTime(j.time):''}<br>${esc(j.address)}</div></div>
+ <div class="two"><div><div class="lbl">Bill to</div><b>${esc(c.name)}</b><br>${addrLines(c).map(esc).join('<br>')}${c.phone?'<br>'+esc(c.phone):''}</div><div><div class="lbl">Service performed</div>${esc(j.type)}<br>${fmtDate(j.date)}${j.time?' at '+fmtTime(j.time):''}<br>${esc(j.address)}</div></div>
  <div class="scroll"><table><thead><tr><th>Description</th><th class="r">Qty</th><th class="r">Price</th><th class="r">Amount</th></tr></thead><tbody>
  ${j.lines.map(l=>`<tr><td>${esc(l.desc)}</td><td class="r num">${num(l.qty)}</td><td class="r num">${money(num(l.rate))}</td><td class="r num">${money(num(l.qty)*num(l.rate))}</td></tr>`).join('')}
  <tr><td colspan="3" class="r">Subtotal</td><td class="r num">${money(t.sub)}</td></tr>${t.tax?`<tr><td colspan="3" class="r">Sales tax</td><td class="r num">${money(t.tax)}</td></tr>`:''}
@@ -592,7 +609,7 @@ async function buildPdf(j){
  doc.setFontSize(11);doc.setFont('helvetica','bold');ink();doc.text(c.name||'',M,y);
  doc.setFont('helvetica','normal');doc.text(j.type||'',W/2+10,y);
  let ly=y+14,ry2=y+14;doc.setFontSize(10);
- wrap(c.address||'',240).forEach(x=>{doc.text(x,M,ly);ly+=13});if(c.phone){doc.text(c.phone,M,ly);ly+=13}
+ addrLines(c).forEach(l=>wrap(l,240).forEach(x=>{doc.text(x,M,ly);ly+=13}));if(c.phone){doc.text(c.phone,M,ly);ly+=13}
  doc.text(fmtDate(j.date)+(j.time?' at '+fmtTime(j.time):''),W/2+10,ry2);ry2+=13;wrap(j.address||'',240).forEach(x=>{doc.text(x,W/2+10,ry2);ry2+=13});
  y=Math.max(ly,ry2)+14;
  const cQ=R-190,cP=R-100,cA=R;
@@ -648,7 +665,7 @@ const acts={
  openJob(el){closeModal();openJob(el.dataset.id)},
  closeJob(){if(DNEW){photosOf(D.id).forEach(p=>idbDel(p.id));P=P.filter(p=>p.jobId!==D.id)}closeModal()},
  closeModal(){closeModal()},
- saveJob(){const j=saveJob(false);if(j){closeModal();toast('Job saved');render()}},
+ saveJob(){const j=saveJob(false);if(j){closeModal();toast(DNEW?'Job scheduled':'Job saved');render()}},
  saveInvJob(){const j=saveJob(true);if(j){closeModal();render();openInvoice(j.id)}},
  delJob(el){if(!arm(el,'Tap again to delete'))return;const id=D.id;photosOf(id).forEach(p=>idbDel(p.id));P=P.filter(p=>p.jobId!==id);S.jobs=S.jobs.filter(j=>j.id!==id);persist();closeModal();render();toast('Job deleted')},
  invoiceJob(el){const j=job(el.dataset.id);j.status='invoiced';assignInv(j);persist();render();openInvoice(j.id)},
@@ -672,7 +689,8 @@ const acts={
  saveCust(el){const name=$('#cu-name').value.trim();if(!name){toast('Enter a name');return}
   const dup=S.customers.find(c=>c.name.toLowerCase()===name.toLowerCase()&&c.id!==el.dataset.id);if(dup){toast('A customer with that name already exists');return}
   let c=el.dataset.id?cust(el.dataset.id):null;const isNew=!c;if(isNew)c={id:uid()};
-  Object.assign(c,{name,kind:$('#cu-kind').value,phone:$('#cu-phone').value,email:$('#cu-email').value,address:$('#cu-addr').value,notes:$('#cu-notes').value,taxExempt:$('#cu-tx').checked});
+  const ad={street:$('#cu-street').value.trim(),city:$('#cu-city').value.trim(),state:$('#cu-state').value.trim(),zip:$('#cu-zip').value.trim()};
+  Object.assign(c,{name,kind:$('#cu-kind').value,phone:fmtPhoneSave($('#cu-phone').value),email:$('#cu-email').value,street:ad.street,city:ad.city,state:ad.state,zip:ad.zip,address:composeAddr(ad),notes:$('#cu-notes').value,taxExempt:$('#cu-tx').checked});
   if(isNew)S.customers.push(c);persist();closeModal();render();toast('Customer saved')},
  delCust(el){const id=el.dataset.id;if(S.jobs.some(j=>j.customerId===id)){toast('This customer has jobs. Delete or move those jobs first.');return}if(!arm(el,'Tap again to delete'))return;S.customers=S.customers.filter(c=>c.id!==id);persist();closeModal();render()},
  taxYear(el){},
@@ -684,7 +702,9 @@ const acts={
  csvExp(){const Y=String(taxYear);saveFile(`bloom-expenses-${Y}.csv`,csv([['Date','Category','Amount','Note'],...S.expenses.filter(e=>e.date.startsWith(Y)).map(e=>[e.date,e.cat,num(e.amount).toFixed(2),e.note])]),'text/csv')},
  jtAdd(){S.settings.jobTypes.push({name:'New service',rate:0});persist();render()},
  jtDel(el){S.settings.jobTypes.splice(+el.dataset.id,1);persist();render()},
- backup(){saveFile('bloom-pest-backup-'+today()+'.json',JSON.stringify({app:'bloom-pest-control',data:S,photos:P}),'application/json')},
+ backup(){const name='Bloom-Pest-Backup-'+today()+'.html';const f=new File([backupHtml()],name,{type:'text/html'});
+  try{if(navigator.canShare&&navigator.canShare({files:[f]})){navigator.share({files:[f],title:name}).catch(()=>{});return}}catch(e){}
+  saveBlob(name,f).then(ok=>{if(ok)toast('Backup saved')})},
  clearSample(){S.customers=[];S.jobs=[];S.expenses=[];S.nextInv=1;S.sample=false;P.forEach(p=>idbDel(p.id));P=[];persist();render();toast('Example data cleared')},
  resetAll(el){if(!arm(el,'Tap again to erase everything'))return;idbClear();P=[];S=defaults();S.tab='upcoming';persist();render();toast('All data erased')}
 };
@@ -692,6 +712,7 @@ function arm(el,label){if(el.dataset.armed){return true}el.dataset.armed='1';con
 document.addEventListener('click',e=>{const el=e.target.closest('[data-act]');if(!el)return;if(el.tagName==='SELECT')return;const f=acts[el.dataset.act];if(f){e.preventDefault();f(el)}});
 function setPath(o,p,v){const a=p.split('.');while(a.length>1)o=o[a.shift()];o[a[0]]=v}
 function onField(e){const t=e.target;
+ if(e.type==='input'){if(t.id==='cu-phone'||t.dataset.f==='newPhone'||t.dataset.s==='phone'){const v=fmtPhoneLive(t.value);if(v!==t.value)t.value=v}else if(t.id==='cu-state'){const v=t.value.toUpperCase().replace(/[^A-Z]/g,'');if(v!==t.value)t.value=v}}
  if(t.id==='q'){q=t.value;render();return}
  if(t.id==='taxYear'){taxYear=+t.value;render();return}
  if(t.dataset.s){const k=t.dataset.s;S.settings[k]=t.type==='number'?num(t.value):t.value;persist();return}
@@ -721,7 +742,7 @@ async function addPhotos(files,fromCam){if(!files||!files.length)return;let n=0;
   if(p.lat!=null&&!D.loc)D.loc={lat:p.lat,lon:p.lon,src:p.src};
   P.push(p);idbPut(p);n++}catch(e){toast('Could not read that image')}}
  if(n)renderJob()}
-function restore(f){if(!f)return;const r=new FileReader();r.onload=()=>{try{const o=JSON.parse(r.result);if(!o.data||!o.data.jobs)throw 0;
+function restore(f){if(!f)return;const r=new FileReader();r.onload=()=>{try{const o=parseBackup(r.result);if(!o.data||!o.data.jobs)throw 0;
  const d=defaults();o.data.settings=Object.assign(d.settings,o.data.settings);S=o.data;idbClear();P=o.photos||[];P.forEach(idbPut);persist();render();toast('Backup restored')}catch(e){toast('That file is not a Bloom backup')}};r.readAsText(f)}
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('#modal').innerHTML&&!$('.lightbox')){if(D)acts.closeJob();else closeModal()}});
 
