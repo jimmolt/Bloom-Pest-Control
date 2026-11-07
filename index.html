@@ -25,17 +25,8 @@
   --shadow:0 1px 2px rgba(20,40,30,.08),0 4px 14px rgba(20,40,30,.06);
   --f-display:'Bricolage Grotesque','Segoe UI',system-ui,sans-serif;
   --f-body:'Public Sans','Segoe UI',system-ui,-apple-system,sans-serif;
+  color-scheme:light;
 }
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --bg:#0e1612; --surface:#17221c; --surface2:#203027; --ink:#e5efe8; --muted:#92a79b; --line:#2b3c32;
-  --brand:#ff6676; --brand-ink:#2a0509; --brand-soft:#4a1a20;
-  --up:#86b5f0; --up-soft:#1c2f4a; --inv:#e6a850; --inv-soft:#3d2c10; --paid:#5fd195; --paid-soft:#173a29; --bad:#ff8c82; --bad-soft:#4a1d19;
-  --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 14px rgba(0,0,0,.3); color-scheme:dark}}
-:root[data-theme="dark"]{
-  --bg:#0e1612; --surface:#17221c; --surface2:#203027; --ink:#e5efe8; --muted:#92a79b; --line:#2b3c32;
-  --brand:#ff6676; --brand-ink:#2a0509; --brand-soft:#4a1a20;
-  --up:#86b5f0; --up-soft:#1c2f4a; --inv:#e6a850; --inv-soft:#3d2c10; --paid:#5fd195; --paid-soft:#173a29; --bad:#ff8c82; --bad-soft:#4a1d19;
-  --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 14px rgba(0,0,0,.3); color-scheme:dark}
 
 *{box-sizing:border-box}
 html,body{min-height:100%}
@@ -481,7 +472,7 @@ function vSet(){const s=S.settings;
  <label class="ck" style="margin-top:8px"><input type="checkbox" data-sc="showDashboard" ${s.showDashboard?'checked':''}> Show the Dashboard tab</label></fieldset>
  <fieldset><legend>Backup</legend><p class="hint" style="margin-top:0">Data and photos live in this browser on this device. Save a backup regularly and before changing phones or clearing browser data. The backup is an HTML file you can open and read, and Restore reads it back.</p>
  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn pri" data-act="backup">Save backup</button><label class="btn" style="cursor:pointer">Restore from backup<input type="file" id="restore" accept=".html,.htm,.json,text/html,application/json" hidden></label></div></fieldset>
- <p class="hint" style="text-align:center">Bloom Pest Control app, version 2026-11-07 i</p>
+ <p class="hint" style="text-align:center">Bloom Pest Control app, version 2026-11-07 j</p>
  <fieldset><legend>Reset</legend><div style="display:flex;gap:8px;flex-wrap:wrap">${S.sample?'<button class="btn" data-act="clearSample">Clear example data</button>':''}<button class="btn bad" data-act="resetAll" data-arm="1">Erase everything</button></div></fieldset>`}
 
 /* ---------- modal plumbing ---------- */
