@@ -268,7 +268,7 @@ function hideCustPop(){const p=$('#custpop');if(p)p.hidden=true}
 function showCustPop(){const pop=$('#custpop');if(!pop||!D)return;const q=(D.custName||'').trim(),m=custMatches(q);
  if(!m.length||(m.length===1&&m[0].name.toLowerCase()===q.toLowerCase())){pop.hidden=true;return}
  const html=m.map(c=>`<button type="button" class="acitem" data-act="pickCust" data-id="${c.id}"><b>${esc(c.name)}</b><span>${esc(c.address||c.phone||'')}</span></button>`).join('');if(pop.dataset.h!==html){pop.innerHTML=html;pop.dataset.h=html}pop.hidden=false}
-function setSiteAddr(c){if(!c||!c.address)return;if(!D.address||D.address===D._auto){D.address=c.address;D._auto=c.address;const a=document.querySelector('[data-f=address]');if(a)a.value=c.address}}
+function setSiteAddr(c){applyCustType(c);if(!c||!c.address)return;if(!D.address||D.address===D._auto){D.address=c.address;D._auto=c.address;const a=document.querySelector('[data-f=address]');if(a)a.value=c.address}}
 
 function fmtPhoneLive(v){let d=String(v||'').replace(/\D/g,'');if(d.length>10&&d[0]==='1')d=d.slice(1);d=d.slice(0,10);
  if(!d)return '';if(d.length<=3)return '('+d;if(d.length<=6)return '('+d.slice(0,3)+') '+d.slice(3);return '('+d.slice(0,3)+') '+d.slice(3,6)+'-'+d.slice(6)}
@@ -288,7 +288,7 @@ let S=load();
 let P=[]; // photos in memory
 let idb=null;
 if(!S){S=seed();persist()}
-let q='',D=null,DNEW=false,taxYear=new Date().getFullYear(),toastT=null;
+let q='',D=null,DNEW=false,DM='sched',taxYear=new Date().getFullYear(),toastT=null;
 
 /* ---------- photo store ---------- */
 function openIDB(){return new Promise(r=>{try{const o=indexedDB.open('bloom-pest-photos',1);o.onupgradeneeded=()=>o.result.createObjectStore('p',{keyPath:'id'});o.onsuccess=()=>r(o.result);o.onerror=()=>r(null);o.onblocked=()=>r(null)}catch(e){r(null)}})}
@@ -364,10 +364,10 @@ function chipFor(j){const T=today();
  if(j.status==='invoiced'){const od=daysBetween(j.dueDate||j.invDate,T);return od>0?`<span class="chip bad">Overdue ${od}d</span>`:`<span class="chip inv">Due ${fmtDate(j.dueDate)}</span>`}
  return`<span class="chip paid">Paid ${fmtDate(j.paidDate)}</span>`}
 function jobCard(j){const d=dObj(j.date),t=totals(j),np=photosOf(j.id).length;
- const acts=j.status==='upcoming'?`<button class="btn sm pri" data-act="invoiceJob" data-id="${j.id}">Complete &amp; invoice</button>`:
+ const acts=j.status==='upcoming'?`<button class="btn sm" data-act="schedJob" data-id="${j.id}">Edit</button><button class="btn sm pri" data-act="invEdit" data-id="${j.id}">Create invoice</button>`:
   j.status==='invoiced'?`<button class="btn sm" data-act="viewInv" data-id="${j.id}">View invoice</button><button class="btn sm pri" data-act="payDlg" data-id="${j.id}">Mark paid</button>`:
   `<button class="btn sm" data-act="viewInv" data-id="${j.id}">View invoice</button>`;
- return`<div class="card job" data-act="${j.status==='upcoming'?'openJob':'viewInv'}" data-id="${j.id}"><div class="dt"><span>${d.toLocaleDateString('en-US',{month:'short'})}</span><b class="num">${d.getDate()}</b></div>
+ return`<div class="card job" data-act="${j.status==='upcoming'?'invEdit':'viewInv'}" data-id="${j.id}"><div class="dt"><span>${d.toLocaleDateString('en-US',{month:'short'})}</span><b class="num">${d.getDate()}</b></div>
  <div class="mid"><div class="nm">${esc(cname(j))}</div><div class="sub">${esc(j.type)}${j.time?' · '+fmtTime(j.time):''}${j.invNo?' · '+esc(j.invNo):''}</div>
  <div class="sub">${esc(j.address||'No address')}</div>
  <div class="row">${chipFor(j)}${np?`<span class="chip">${np} photo${np>1?'s':''}</span>`:''}<span class="amt num">${money(t.total)}</span></div>
@@ -472,7 +472,7 @@ function vSet(){const s=S.settings;
  <label class="ck" style="margin-top:8px"><input type="checkbox" data-sc="showDashboard" ${s.showDashboard?'checked':''}> Show the Dashboard tab</label></fieldset>
  <fieldset><legend>Backup</legend><p class="hint" style="margin-top:0">Data and photos live in this browser on this device. Save a backup regularly and before changing phones or clearing browser data. The backup is an HTML file you can open and read, and Restore reads it back.</p>
  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn pri" data-act="backup">Save backup</button><label class="btn" style="cursor:pointer">Restore from backup<input type="file" id="restore" accept=".html,.htm,.json,text/html,application/json" hidden></label></div></fieldset>
- <p class="hint" style="text-align:center">Bloom Pest Control app, version 2026-11-07 j</p>
+ <p class="hint" style="text-align:center">Bloom Pest Control app, version 2026-11-07 k</p>
  <fieldset><legend>Reset</legend><div style="display:flex;gap:8px;flex-wrap:wrap">${S.sample?'<button class="btn" data-act="clearSample">Clear example data</button>':''}<button class="btn bad" data-act="resetAll" data-arm="1">Erase everything</button></div></fieldset>`}
 
 /* ---------- modal plumbing ---------- */
@@ -484,28 +484,33 @@ function setTop(y){const b=document.querySelector('#modal .sbody');if(b)b.scroll
 /* ---------- job editor ---------- */
 function svcTypes(){return (S.settings.jobTypes||[]).filter(t=>!/^other$/i.test(String(t.name).trim()))}
 function lineOther(l){if(l._o!==undefined)return l._o;return !svcTypes().some(t=>t.name===l.desc)}
-function blankJob(custId){const t=S.settings.jobTypes[0]||{name:'Service',rate:0};const c=custId&&cust(custId);
+function custDefaultType(c){if(!c)return'';if(c.defaultType&&S.settings.jobTypes.some(t=>t.name===c.defaultType))return c.defaultType;const js=S.jobs.filter(j=>j.customerId===c.id).sort((a,b)=>b.date.localeCompare(a.date));return js[0]?js[0].type:''}
+function syncLines(){const L=D.lines||[],nt=svcTypes().find(x=>x.name===D.type);if(!nt)return;
+ const pristine=!L.length||(L.length===1&&num(L[0].qty)===1&&svcTypes().some(t=>t.name===L[0].desc&&num(t.rate)===num(L[0].rate)));
+ if(pristine)D.lines=[{id:L[0]?L[0].id:uid(),desc:nt.name,qty:1,rate:nt.rate,tax:L[0]?L[0].tax:true,_o:false}]}
+function applyCustType(c){if(!c||!D||!DNEW||DM!=='sched'||D._typeSet)return;const t=custDefaultType(c);if(!t||t===D.type)return;D.type=t;D._prevType=t;syncLines();const s=document.querySelector('[data-f=type]');if(s)s.value=t}
+function blankJob(custId){const c=custId&&cust(custId);const dt=c&&custDefaultType(c);const t=(dt&&S.settings.jobTypes.find(x=>x.name===dt))||S.settings.jobTypes[0]||{name:'Service',rate:0};
  return{id:uid(),customerId:custId||'',custName:c?c.name:'',newPhone:'',type:t.name,date:today(),time:'',address:c?c.address:'',status:'upcoming',
  lines:[{id:uid(),desc:t.name,qty:1,rate:t.rate,tax:true}],treatment:{pests:'',product:'',epa:'',amount:'',method:'',areas:''},notes:'',invNotes:'',showTreat:true,miles:'',costs:{chem:'',other:''},invNo:'',invDate:'',dueDate:'',paidDate:'',payMethod:'',loc:null}}
-function openJob(id,custId){
- if(id){const j=job(id);D=JSON.parse(JSON.stringify(j));D.custName=cname(j);D.newPhone='';DNEW=false}else{D=blankJob(custId);DNEW=true}
+function openJob(id,custId,mode){
+ if(id){const j=job(id);D=JSON.parse(JSON.stringify(j));D.custName=cname(j);D.newPhone='';DNEW=false;DM=mode||(j.status==='upcoming'?'sched':'inv');if(DM==='inv'&&D.status==='upcoming')syncLines()}else{D=blankJob(custId);DNEW=true;DM='sched'}
  D._prevType=D.type;renderJob()}
 function matchCust(name){const n=(name||'').trim().toLowerCase();return n?S.customers.find(c=>c.name.toLowerCase()===n):null}
 function renderJob(){const y=sbodyTop(),j=D,tt=totals(Object.assign({},j,{customerId:(matchCust(j.custName)||{}).id}));const mc=matchCust(j.custName);
  const ph=photosOf(j.id),tr=j.treatment;
  const gps=j.loc?`<div class="gps">GPS ${fmtGps(j.loc.lat,j.loc.lon)} (${esc(j.loc.src||'')}) · <a href="${mapLink(j.loc.lat,j.loc.lon)}" target="_blank" rel="noopener">Open in Maps</a></div>`:'<div class="gps">No GPS saved yet. It is picked up from photos or the button below.</div>';
- openModal(`<div class="backdrop"><div class="sheet" role="dialog" aria-label="Job"><header><h2>${DNEW?'New job':esc(j.custName||'Job')}</h2>${j.invNo?`<span class="chip">${esc(j.invNo)}</span>`:''}<button class="btn sm" data-act="closeJob">Close</button></header>
+ openModal(`<div class="backdrop"><div class="sheet" role="dialog" aria-label="Job"><header><h2>${DNEW?'Schedule job':(DM==='inv'&&j.status==='upcoming'?'Create invoice':esc(j.custName||'Job'))}</h2>${j.invNo?`<span class="chip">${esc(j.invNo)}</span>`:''}${DM==='inv'&&j.status==='upcoming'?'<button class="btn sm" data-act="toSched">Edit schedule</button>':''}<button class="btn sm" data-act="closeJob">Close</button></header>
  <div class="sbody">
  <fieldset><legend>Customer and site</legend><div class="fg">
   <div class="wide acwrap"><label class="f">Customer<input id="f-cust" data-f="custName" value="${esc(j.custName)}" placeholder="Type a customer name" autocomplete="off" autocorrect="off" autocapitalize="words" spellcheck="false"></label><div id="custpop" class="acpop" hidden></div></div>
   <div class="wide" id="newbox" ${mc?'hidden':''}><div class="hint" style="margin:0 0 6px">New customer. They are added to Customers when you save.</div><label class="f">Phone<input data-f="newPhone" value="${esc(j.newPhone)}" inputmode="tel" placeholder="(555) 555-5555"></label></div>
   <label class="f wide">Service address<input data-f="address" value="${esc(j.address)}"></label>
   ${gps}<div class="wide"><button class="btn sm" data-act="useLoc">Save my current location for this job</button></div></div></fieldset>
- <fieldset><legend>Schedule</legend><div class="fg">
+ <fieldset><legend>${DM==='sched'?'Schedule':'Service date'}</legend><div class="fg">
   <label class="f">Service type<select data-f="type">${S.settings.jobTypes.map(t=>`<option ${t.name===j.type?'selected':''}>${esc(t.name)}</option>`).join('')}${S.settings.jobTypes.some(t=>t.name===j.type)?'':`<option selected>${esc(j.type)}</option>`}</select></label>
   <label class="f">Date<input type="date" data-f="date" value="${esc(j.date)}"></label><label class="f">Time<input type="time" data-f="time" value="${esc(j.time)}"></label></div>
   </fieldset>
- <fieldset><legend>Charges</legend><div class="lines">${j.lines.map((l,i)=>{const o=lineOther(l);return `<div class="ln"><label class="f">Service<select data-l="${i}" data-k="sel">${svcTypes().map(t=>`<option value="${esc(t.name)}" ${!o&&t.name===l.desc?'selected':''}>${esc(t.name)}${num(t.rate)?' ('+money(num(t.rate))+')':''}</option>`).join('')}<option value="__other" ${o?'selected':''}>Other (enter manually)</option></select></label><label class="f">Qty<input data-l="${i}" data-k="qty" type="number" step="any" min="0" value="${esc(l.qty)}" inputmode="decimal"></label><label class="f">Price each<input data-l="${i}" data-k="rate" type="number" step="0.01" value="${esc(l.rate)}" inputmode="decimal"></label><div class="tx"><label class="ck"><input type="checkbox" data-l="${i}" data-k="tax" ${l.tax?'checked':''}>Tax</label><button class="btn sm bad" data-act="delLine" data-id="${i}" aria-label="Remove line">×</button></div>${o?`<label class="f dl">Description (shown on invoice)<input data-l="${i}" data-k="desc" value="${esc(l.desc)}" placeholder="Describe the work"></label>`:''}</div>`}).join('')}</div>
+ ${DM==='inv'?`<fieldset><legend>Charges</legend><div class="lines">${j.lines.map((l,i)=>{const o=lineOther(l);return `<div class="ln"><label class="f">Service<select data-l="${i}" data-k="sel">${svcTypes().map(t=>`<option value="${esc(t.name)}" ${!o&&t.name===l.desc?'selected':''}>${esc(t.name)}${num(t.rate)?' ('+money(num(t.rate))+')':''}</option>`).join('')}<option value="__other" ${o?'selected':''}>Other (enter manually)</option></select></label><label class="f">Qty<input data-l="${i}" data-k="qty" type="number" step="any" min="0" value="${esc(l.qty)}" inputmode="decimal"></label><label class="f">Price each<input data-l="${i}" data-k="rate" type="number" step="0.01" value="${esc(l.rate)}" inputmode="decimal"></label><div class="tx"><label class="ck"><input type="checkbox" data-l="${i}" data-k="tax" ${l.tax?'checked':''}>Tax</label><button class="btn sm bad" data-act="delLine" data-id="${i}" aria-label="Remove line">×</button></div>${o?`<label class="f dl">Description (shown on invoice)<input data-l="${i}" data-k="desc" value="${esc(l.desc)}" placeholder="Describe the work"></label>`:''}</div>`}).join('')}</div>
   <div style="margin-top:10px"><button class="btn sm" data-act="addLine">+ Add line</button></div>
   <div class="sum"><span>Subtotal <b class="num" id="t-sub">${money(tt.sub)}</b></span><span>Tax <b class="num" id="t-tax">${money(tt.tax)}</b></span><span>Total <b class="num" id="t-tot">${money(tt.total)}</b></span></div></fieldset>
  <fieldset><legend>What was sprayed</legend><div class="fg">
@@ -514,11 +519,11 @@ function renderJob(){const y=sbodyTop(),j=D,tt=totals(Object.assign({},j,{custom
   <label class="f">Amount applied<input data-t="amount" value="${esc(tr.amount)}" placeholder="3 gal mix"></label><label class="f">Method<input data-t="method" value="${esc(tr.method)}" placeholder="Pin stream, bait, fog"></label>
   <label class="f wide">Areas treated<input data-t="areas" value="${esc(tr.areas)}"></label></div>
   <label class="ck" style="margin-top:10px"><input type="checkbox" data-f="showTreat" ${j.showTreat?'checked':''}> Show this on the invoice</label>
-  <p class="hint">Saved to the customer's history so you can see exactly what was done last time.</p></fieldset>
+  <p class="hint">Saved to the customer's history so you can see exactly what was done last time.</p></fieldset>`:''}
  <fieldset><legend>Notes</legend><div class="fg">
   <label class="f wide private">Private notes (never shown to the customer)<textarea data-f="notes" placeholder="Gate codes, dog in yard, access problems, follow-up ideas">${esc(j.notes)}</textarea></label>
-  <label class="f wide">Invoice notes (printed on the invoice)<textarea data-f="invNotes" placeholder="Anything the customer should read">${esc(j.invNotes)}</textarea></label></div></fieldset>
- <fieldset><legend>Photos</legend>
+  ${DM==='inv'?`<label class="f wide">Invoice notes (printed on the invoice)<textarea data-f="invNotes" placeholder="Anything the customer should read">${esc(j.invNotes)}</textarea></label>`:''}</div></fieldset>
+ ${DM==='inv'?`<fieldset><legend>Photos</legend>
   <div style="display:flex;gap:8px;flex-wrap:wrap"><label class="btn pri" style="cursor:pointer">Take photo<input type="file" id="cam" accept="image/*" capture="environment" hidden></label><label class="btn" style="cursor:pointer">Choose from library<input type="file" id="lib" accept="image/*" multiple hidden></label></div>
   <p class="hint">Photos are hidden from the customer unless you tick "On invoice". Location is read from the photo when the phone saved it.</p>
   ${ph.length?`<div class="photos">${ph.map(p=>`<div class="ph"><img src="${p.data}" alt="Job photo" data-act="viewPhoto" data-id="${p.id}"><div class="pb"><input type="text" data-pc="${p.id}" value="${esc(p.caption)}" placeholder="Caption or note"><label class="ck"><input type="checkbox" data-pi="${p.id}" ${p.onInvoice?'checked':''}> On invoice</label>
@@ -527,22 +532,22 @@ function renderJob(){const y=sbodyTop(),j=D,tt=totals(Object.assign({},j,{custom
   <label class="f">Chemicals &amp; supplies $<input data-c="chem" type="number" step="0.01" value="${esc(j.costs.chem)}" inputmode="decimal"></label>
   <label class="f">Other cost $<input data-c="other" type="number" step="0.01" value="${esc(j.costs.other)}" inputmode="decimal"></label>
   <label class="f">Round-trip miles<input data-f="miles" type="number" step="0.1" value="${esc(j.miles)}" inputmode="decimal"></label></div>
-  <p class="hint" id="mileHint">${num(j.miles)?'Mileage deduction: '+money(num(j.miles)*num(S.settings.mileRate)):'Enter miles to see the deduction.'}</p></fieldset>
- <fieldset><legend>Status</legend><div class="fg"><label class="f">Stage<select data-f="status"><option value="upcoming" ${j.status==='upcoming'?'selected':''}>Upcoming</option><option value="invoiced" ${j.status==='invoiced'?'selected':''}>Invoiced</option><option value="paid" ${j.status==='paid'?'selected':''}>Paid</option></select></label>
+  <p class="hint" id="mileHint">${num(j.miles)?'Mileage deduction: '+money(num(j.miles)*num(S.settings.mileRate)):'Enter miles to see the deduction.'}</p></fieldset>`:''}
+ ${DM==='inv'&&j.status!=='upcoming'?`<fieldset><legend>Status</legend><div class="fg"><label class="f">Stage<select data-f="status"><option value="upcoming" ${j.status==='upcoming'?'selected':''}>Upcoming</option><option value="invoiced" ${j.status==='invoiced'?'selected':''}>Invoiced</option><option value="paid" ${j.status==='paid'?'selected':''}>Paid</option></select></label>
   ${j.status!=='upcoming'?`<label class="f">Invoice date<input type="date" data-f="invDate" value="${esc(j.invDate||today())}"></label><label class="f">Due date<input type="date" data-f="dueDate" value="${esc(j.dueDate||addDays(j.invDate||today(),num(S.settings.dueDays)))}"></label>`:''}
-  ${j.status==='paid'?`<label class="f">Paid on<input type="date" data-f="paidDate" value="${esc(j.paidDate||today())}"></label><label class="f">Paid by<select data-f="payMethod">${PAY.map(p=>`<option ${p===j.payMethod?'selected':''}>${p}</option>`).join('')}</select></label>`:''}</div></fieldset>
+  ${j.status==='paid'?`<label class="f">Paid on<input type="date" data-f="paidDate" value="${esc(j.paidDate||today())}"></label><label class="f">Paid by<select data-f="payMethod">${PAY.map(p=>`<option ${p===j.payMethod?'selected':''}>${p}</option>`).join('')}</select></label>`:''}</div></fieldset>`:''}
  </div>
- <div class="sfoot">${DNEW?'':'<button class="btn bad" data-act="delJob" data-arm="1">Delete job</button>'}<span class="sp"></span><button class="btn" data-act="closeJob">Cancel</button>${j.status==='upcoming'?(DNEW?'<button class="btn grow" data-act="saveJob">Schedule job</button><button class="btn pri grow" data-act="saveInvJob">Save &amp; invoice</button>':'<button class="btn" data-act="saveJob">Save</button><button class="btn pri" data-act="saveInvJob">Save &amp; invoice</button>'):'<button class="btn pri" data-act="saveJob">Save</button>'}</div></div></div>`);
+ <div class="sfoot">${DNEW?'':'<button class="btn bad" data-act="delJob" data-arm="1">Delete job</button>'}<span class="sp"></span><button class="btn" data-act="closeJob">Cancel</button>${DM==='sched'?'<button class="btn grow" data-act="saveJob">Schedule job</button><button class="btn pri grow" data-act="schedInv">Create invoice</button>':(j.status==='upcoming'?'<button class="btn pri grow" data-act="saveInvJob">Create invoice</button>':'<button class="btn pri" data-act="saveJob">Save</button>')}</div></div></div>`);
  setTop(y)}
 function refreshTotals(){const c=matchCust(D.custName);const t=totals(Object.assign({},D,{customerId:c?c.id:''}));
- $('#t-sub').textContent=money(t.sub);$('#t-tax').textContent=money(t.tax);$('#t-tot').textContent=money(t.total);
+ if($('#t-sub')){$('#t-sub').textContent=money(t.sub);$('#t-tax').textContent=money(t.tax);$('#t-tot').textContent=money(t.total)}
  const h=$('#mileHint');if(h)h.textContent=num(D.miles)?'Mileage deduction: '+money(num(D.miles)*num(S.settings.mileRate)):'Enter miles to see the deduction.'}
 function saveJob(thenInvoice){
  const name=(D.custName||'').trim();if(!name){toast('Enter a customer name');return false}if(!D.date){toast('Pick a date');return false}
  let c=matchCust(name);
- if(!c){c={id:uid(),name,kind:'Home',phone:fmtPhoneSave(D.newPhone||''),email:'',address:D.address||'',taxExempt:false,notes:''};S.customers.push(c)}
+ if(!c){c={id:uid(),name,kind:'Home',phone:fmtPhoneSave(D.newPhone||''),email:'',address:D.address||'',taxExempt:false,notes:'',defaultType:D.type};S.customers.push(c)}
  else if(!c.address&&D.address)c.address=D.address;
- const j=JSON.parse(JSON.stringify(D));j.customerId=c.id;delete j.custName;delete j.newPhone;delete j._prevType;delete j._auto;
+ const j=JSON.parse(JSON.stringify(D));j.customerId=c.id;delete j.custName;delete j.newPhone;delete j._prevType;delete j._auto;delete j._typeSet;
  j.lines=j.lines.filter(l=>String(l.desc).trim()||num(l.rate)).map(l=>({id:l.id,desc:l.desc,qty:num(l.qty),rate:num(l.rate),tax:!!l.tax}));
  if(!j.loc){const p=photosOf(j.id).find(p=>p.lat!=null);if(p)j.loc={lat:p.lat,lon:p.lon,src:'photo'}}
  if(thenInvoice)j.status='invoiced';
@@ -560,6 +565,7 @@ function openCust(id){const c=id?cust(id):{id:'',name:'',kind:'Home',phone:'',em
  <div class="sbody"><fieldset><legend>Details</legend><div class="fg">
   <label class="f wide">Name<input id="cu-name" value="${esc(c.name)}"></label>
   <label class="f">Type<select id="cu-kind">${KINDS.map(k=>`<option ${k===c.kind?'selected':''}>${k}</option>`).join('')}</select></label>
+  <label class="f">Usual service<select id="cu-svc"><option value="">Same as last job</option>${S.settings.jobTypes.map(t=>`<option ${t.name===c.defaultType?'selected':''}>${esc(t.name)}</option>`).join('')}</select></label>
   <label class="f">Phone<input id="cu-phone" value="${esc(c.phone)}" inputmode="tel" placeholder="(555) 555-5555" autocomplete="off"></label><label class="f">Email<input id="cu-email" value="${esc(c.email)}" inputmode="email"></label>
   <label class="f wide">Street address<input id="cu-street" value="${esc(c.street!=null?c.street:c.address)}" autocomplete="off"></label>
   <label class="f">City<input id="cu-city" value="${esc(c.city)}" autocomplete="off"></label>
@@ -679,6 +685,10 @@ const acts={
  closeModal(){closeModal()},
  saveJob(){const j=saveJob(false);if(j){closeModal();toast(DNEW?'Job scheduled':'Job saved');render()}},
  saveInvJob(){const j=saveJob(true);if(j){closeModal();render();openInvoice(j.id)}},
+ schedInv(){const j=saveJob(false);if(j){closeModal();render();openJob(j.id,null,'inv')}},
+ toSched(){const j=saveJob(false);if(j){closeModal();render();openJob(j.id,null,'sched')}},
+ schedJob(el){closeModal();openJob(el.dataset.id,null,'sched')},
+ invEdit(el){closeModal();openJob(el.dataset.id,null,'inv')},
  delJob(el){if(!arm(el,'Tap again to delete'))return;const id=D.id;photosOf(id).forEach(p=>idbDel(p.id));P=P.filter(p=>p.jobId!==id);S.jobs=S.jobs.filter(j=>j.id!==id);persist();closeModal();render();toast('Job deleted')},
  invoiceJob(el){const j=job(el.dataset.id);j.status='invoiced';assignInv(j);persist();render();openInvoice(j.id)},
  viewInv(el){openInvoice(el.dataset.id)},
@@ -703,7 +713,7 @@ const acts={
   const dup=S.customers.find(c=>c.name.toLowerCase()===name.toLowerCase()&&c.id!==el.dataset.id);if(dup){toast('A customer with that name already exists');return}
   let c=el.dataset.id?cust(el.dataset.id):null;const isNew=!c;if(isNew)c={id:uid()};
   const ad={street:$('#cu-street').value.trim(),city:$('#cu-city').value.trim(),state:$('#cu-state').value.trim(),zip:$('#cu-zip').value.trim()};
-  Object.assign(c,{name,kind:$('#cu-kind').value,phone:fmtPhoneSave($('#cu-phone').value),email:$('#cu-email').value,street:ad.street,city:ad.city,state:ad.state,zip:ad.zip,address:composeAddr(ad),notes:$('#cu-notes').value,taxExempt:$('#cu-tx').checked});
+  Object.assign(c,{name,kind:$('#cu-kind').value,phone:fmtPhoneSave($('#cu-phone').value),email:$('#cu-email').value,street:ad.street,city:ad.city,state:ad.state,zip:ad.zip,address:composeAddr(ad),notes:$('#cu-notes').value,taxExempt:$('#cu-tx').checked,defaultType:$('#cu-svc').value});
   if(isNew)S.customers.push(c);persist();closeModal();render();toast('Customer saved')},
  delCust(el){const id=el.dataset.id;if(S.jobs.some(j=>j.customerId===id)){toast('This customer has jobs. Delete or move those jobs first.');return}if(!arm(el,'Tap again to delete'))return;S.customers=S.customers.filter(c=>c.id!==id);persist();closeModal();render()},
  taxYear(el){},
@@ -738,8 +748,7 @@ function onField(e){const t=e.target;
  if(t.id==='cam'||t.id==='lib'){if(e.type==='change')addPhotos(t.files,t.id==='cam');return}
  if(t.dataset.f!==undefined){const k=t.dataset.f;setPath(D,k,t.type==='checkbox'?t.checked:t.value);
   if(k==='custName'){const c=matchCust(D.custName);$('#newbox').hidden=!!c;if(c)setSiteAddr(c);if(e.type==='input')showCustPop();refreshTotals()}
-  else if(k==='type'&&e.type==='change'){const nt=S.settings.jobTypes.find(x=>x.name===D.type),pt=S.settings.jobTypes.find(x=>x.name===D._prevType);
-   if(D.lines.length===1&&pt&&D.lines[0].desc===pt.name&&num(D.lines[0].rate)===num(pt.rate)&&nt){D.lines[0].desc=nt.name;D.lines[0].rate=nt.rate}D._prevType=D.type;renderJob()}
+  else if(k==='type'&&e.type==='change'){D._typeSet=true;syncLines();D._prevType=D.type;renderJob()}
   else if(k==='status'){renderJob()}
   else refreshTotals();return}
  if(t.dataset.t){D.treatment[t.dataset.t]=t.value;return}
