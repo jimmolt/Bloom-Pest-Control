@@ -449,7 +449,7 @@ function vSet(){const s=S.settings;
  <label class="ck" style="margin-top:8px"><input type="checkbox" data-sc="tagLocation" ${s.tagLocation?'checked':''}> Tag photos taken in the app with this device's location when allowed</label></fieldset>
  <fieldset><legend>Backup</legend><p class="hint" style="margin-top:0">Data and photos live in this browser on this device. Save a backup regularly and before changing phones or clearing browser data. The backup is an HTML file you can open and read, and Restore reads it back.</p>
  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn pri" data-act="backup">Save backup</button><label class="btn" style="cursor:pointer">Restore from backup<input type="file" id="restore" accept=".html,.htm,.json,text/html,application/json" hidden></label></div></fieldset>
- <p class="hint" style="text-align:center">Bloom Pest Control app, version 2026-11-07 s</p>
+ <p class="hint" style="text-align:center">Bloom Pest Control app, version 2026-11-07 t</p>
  <fieldset><legend>Reset</legend><div style="display:flex;gap:8px;flex-wrap:wrap">${S.sample?'<button class="btn" data-act="clearSample">Clear example data</button>':''}<button class="btn bad" data-act="resetAll" data-arm="1">Erase everything</button></div></fieldset>`}
 
 /* ---------- modal plumbing ---------- */
@@ -557,7 +557,7 @@ function invoiceHtml(j){const c=cust(j.customerId)||{name:'',address:''},s=S.set
  const pp=photosOf(j.id).filter(p=>p.onInvoice);
  return`<div class="paper"><div class="ih"><div><img class="plogo" src="${LOGO}" alt="${esc(s.bizName)}"><div>${esc(s.address)}</div><div>${[s.phone,s.email].filter(Boolean).map(esc).join(' · ')}</div>${s.license?`<div>Applicator license ${esc(s.license)}</div>`:''}</div>
  <div class="meta"><b>INVOICE ${esc(j.invNo||'(draft)')}</b>Date ${fmtDate(j.invDate||today())}<br>${j.status==='paid'?'':`Due ${fmtDate(j.dueDate||addDays(j.invDate||today(),num(s.dueDays)))}`}${j.status==='paid'?`<br><span class="paid-stamp">PAID ${fmtDate(j.paidDate)}</span>`:''}</div></div>
- <div class="two"><div><div class="lbl">Bill to</div><b>${esc(c.name)}</b><br>${addrLines(c).map(esc).join('<br>')}${c.phone?'<br>'+esc(c.phone):''}</div><div><div class="lbl">Service performed</div>${esc(j.type)}<br>${fmtDate(j.date)}${j.time?' at '+fmtTime(j.time):''}<br>${esc(j.address)}</div></div>
+ <div class="two"><div><div class="lbl">Bill to</div><b>${esc(c.name)}</b><br>${addrLines(c).map(esc).join('<br>')}${c.phone?'<br>'+esc(c.phone):''}</div></div>
  <div class="scroll"><table><thead><tr><th>Description</th><th class="r">Qty</th><th class="r">Price</th><th class="r">Amount</th></tr></thead><tbody>
  ${j.lines.map(l=>`<tr><td>${esc(l.desc)}</td><td class="r num">${num(l.qty)}</td><td class="r num">${money(num(l.rate))}</td><td class="r num">${money(num(l.qty)*num(l.rate))}</td></tr>`).join('')}
  <tr><td colspan="3" class="r">Subtotal</td><td class="r num">${money(t.sub)}</td></tr>${t.tax?`<tr><td colspan="3" class="r">Sales tax</td><td class="r num">${money(t.tax)}</td></tr>`:''}
@@ -567,7 +567,7 @@ function invoiceHtml(j){const c=cust(j.customerId)||{name:'',address:''},s=S.set
  ${pp.length?`<div class="pp">${pp.map(p=>`<div><img src="${p.data}" alt="">${p.caption?`<span>${esc(p.caption)}</span>`:''}</div>`).join('')}</div>`:''}
  <div class="foot">${esc(s.terms)}<br>${esc(s.footer)}</div></div>`}
 function invText(j){const c=cust(j.customerId)||{},s=S.settings,t=totals(j);
- return[`${s.bizName}`,`Invoice ${j.invNo}  ${fmtDate(j.invDate)}`,`Bill to: ${c.name}`,`Service: ${j.type}, ${fmtDate(j.date)}`,'',...j.lines.map(l=>`${l.desc}  ${num(l.qty)} x ${money(num(l.rate))} = ${money(num(l.qty)*num(l.rate))}`),t.tax?`Sales tax ${money(t.tax)}`:'',`Total ${money(t.total)}`,j.status==='paid'?'PAID '+fmtDate(j.paidDate):`Due ${fmtDate(j.dueDate)}`,'',j.invNotes||'',s.terms,s.footer].filter((x,i,a)=>x!==''||a[i-1]!=='').join('\n')}
+ return[`${s.bizName}`,`Invoice ${j.invNo}  ${fmtDate(j.invDate)}`,`Bill to: ${c.name}`,'',...j.lines.map(l=>`${l.desc}  ${num(l.qty)} x ${money(num(l.rate))} = ${money(num(l.qty)*num(l.rate))}`),t.tax?`Sales tax ${money(t.tax)}`:'',`Total ${money(t.total)}`,j.status==='paid'?'PAID '+fmtDate(j.paidDate):`Due ${fmtDate(j.dueDate)}`,'',j.invNotes||'',s.terms,s.footer].filter((x,i,a)=>x!==''||a[i-1]!=='').join('\n')}
 function openInvoice(id){const j=job(id);if(!j)return;
  openModal(`<div class="backdrop"><div class="sheet" role="dialog" aria-label="Invoice"><header class="no-print"><h2>Invoice ${esc(j.invNo||'')}</h2><button class="btn sm" data-act="closeModal">Close</button></header>
  <div class="sbody">${invoiceHtml(j)}<p class="hint no-print">Share PDF opens your phone's share sheet so you can text it, email it or save it to Files. Private notes never appear on the invoice.</p></div>
@@ -597,13 +597,12 @@ async function buildPdf(j){
  [['Invoice date',fmtDate(j.invDate||today())],j.status==='paid'?['Paid',fmtDate(j.paidDate)]:['Due',fmtDate(j.dueDate||addDays(j.invDate||today(),num(s.dueDays)))]].forEach(p=>{doc.setFont('helvetica','normal');grey();doc.text(p[0],R-120,ry);ink();doc.setFont('helvetica','bold');doc.text(p[1],R,ry,{align:'right'});ry+=14});
  if(j.status==='paid'){doc.setDrawColor(27,117,71);doc.setLineWidth(1.6);doc.setTextColor(27,117,71);doc.setFont('helvetica','bold');doc.setFontSize(14);doc.roundedRect(R-70,ry+2,70,24,3,3,'S');doc.text('PAID',R-35,ry+19,{align:'center'});ry+=28;ink()}
  y=Math.max(y,ry)+18;
- label('Bill to',M,y);label('Service performed',W/2+10,y);y+=14;
+ label('Bill to',M,y);y+=14;
  doc.setFontSize(11);doc.setFont('helvetica','bold');ink();doc.text(c.name||'',M,y);
- doc.setFont('helvetica','normal');doc.text(j.type||'',W/2+10,y);
+ doc.setFont('helvetica','normal');
  let ly=y+14,ry2=y+14;doc.setFontSize(10);
  addrLines(c).forEach(l=>wrap(l,240).forEach(x=>{doc.text(x,M,ly);ly+=13}));if(c.phone){doc.text(c.phone,M,ly);ly+=13}
- doc.text(fmtDate(j.date)+(j.time?' at '+fmtTime(j.time):''),W/2+10,ry2);ry2+=13;wrap(j.address||'',240).forEach(x=>{doc.text(x,W/2+10,ry2);ry2+=13});
- y=Math.max(ly,ry2)+14;
+  y=Math.max(ly,ry2)+14;
  const cQ=R-190,cP=R-100,cA=R;
  doc.setDrawColor(26,26,26);doc.setLineWidth(1.5);doc.line(M,y,R,y);y+=14;
  label('Description',M,y);
