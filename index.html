@@ -473,7 +473,7 @@ function vSet(){const s=S.settings;
  <label class="ck" style="margin-top:8px"><input type="checkbox" data-sc="showDashboard" ${s.showDashboard?'checked':''}> Show the Dashboard tab</label></fieldset>
  <fieldset><legend>Backup</legend><p class="hint" style="margin-top:0">Data and photos live in this browser on this device. Save a backup regularly and before changing phones or clearing browser data. The backup is an HTML file you can open and read, and Restore reads it back.</p>
  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn pri" data-act="backup">Save backup</button><label class="btn" style="cursor:pointer">Restore from backup<input type="file" id="restore" accept=".html,.htm,.json,text/html,application/json" hidden></label></div></fieldset>
- <p class="hint" style="text-align:center">Bloom Pest Control app, version 2026-11-07 l</p>
+ <p class="hint" style="text-align:center">Bloom Pest Control app, version 2026-11-07 m</p>
  <fieldset><legend>Reset</legend><div style="display:flex;gap:8px;flex-wrap:wrap">${S.sample?'<button class="btn" data-act="clearSample">Clear example data</button>':''}<button class="btn bad" data-act="resetAll" data-arm="1">Erase everything</button></div></fieldset>`}
 
 /* ---------- modal plumbing ---------- */
@@ -508,7 +508,7 @@ function renderJob(){const y=sbodyTop(),j=D,tt=totals(Object.assign({},j,{custom
   <label class="f wide">Service address<input data-f="address" value="${esc(j.address)}"></label>
   ${gps}<div class="wide"><button class="btn sm" data-act="useLoc">Save my current location for this job</button></div></div></fieldset>
  <fieldset><legend>${DM==='sched'?'Schedule':'Service date'}</legend><div class="fg">
-  <label class="f">Service type<select data-f="type">${S.settings.jobTypes.map(t=>`<option ${t.name===j.type?'selected':''}>${esc(t.name)}</option>`).join('')}${S.settings.jobTypes.some(t=>t.name===j.type)?'':`<option selected>${esc(j.type)}</option>`}</select></label>
+  ${DM==='sched'?`<label class="f">Service type<select data-f="type">${S.settings.jobTypes.map(t=>`<option ${t.name===j.type?'selected':''}>${esc(t.name)}</option>`).join('')}${S.settings.jobTypes.some(t=>t.name===j.type)?'':`<option selected>${esc(j.type)}</option>`}</select></label>`:''}
   <label class="f">Date<input type="date" data-f="date" value="${esc(j.date)}"></label><label class="f">Time<input type="time" data-f="time" value="${esc(j.time)}"></label></div>
   </fieldset>
  ${DM==='inv'?`<fieldset><legend>Charges</legend><div class="lines">${j.lines.map((l,i)=>{const o=lineOther(l);return `<div class="ln"><label class="f">Service<select data-l="${i}" data-k="sel">${svcTypes().map(t=>`<option value="${esc(t.name)}" ${!o&&t.name===l.desc?'selected':''}>${esc(t.name)}${num(t.rate)?' ('+money(num(t.rate))+')':''}</option>`).join('')}<option value="__other" ${o?'selected':''}>Other (enter manually)</option></select></label><label class="f">Qty<input data-l="${i}" data-k="qty" type="number" step="any" min="0" value="${esc(l.qty)}" inputmode="decimal"></label><label class="f">Price each<input data-l="${i}" data-k="rate" type="number" step="0.01" value="${esc(l.rate)}" inputmode="decimal"></label><div class="tx"><label class="ck"><input type="checkbox" data-l="${i}" data-k="tax" ${l.tax?'checked':''}>Tax</label><button class="btn sm bad" data-act="delLine" data-id="${i}" aria-label="Remove line">×</button></div>${o?`<label class="f dl">Description (shown on invoice)<input data-l="${i}" data-k="desc" value="${esc(l.desc)}" placeholder="Describe the work"></label>`:''}</div>`}).join('')}</div>
@@ -538,7 +538,7 @@ function renderJob(){const y=sbodyTop(),j=D,tt=totals(Object.assign({},j,{custom
   ${j.status!=='upcoming'?`<label class="f">Invoice date<input type="date" data-f="invDate" value="${esc(j.invDate||today())}"></label><label class="f">Due date<input type="date" data-f="dueDate" value="${esc(j.dueDate||addDays(j.invDate||today(),num(S.settings.dueDays)))}"></label>`:''}
   ${j.status==='paid'?`<label class="f">Paid on<input type="date" data-f="paidDate" value="${esc(j.paidDate||today())}"></label><label class="f">Paid by<select data-f="payMethod">${PAY.map(p=>`<option ${p===j.payMethod?'selected':''}>${p}</option>`).join('')}</select></label>`:''}</div></fieldset>`:''}
  </div>
- <div class="sfoot">${DNEW?'':'<button class="btn bad" data-act="delJob" data-arm="1">Delete job</button>'}<span class="sp"></span><button class="btn" data-act="closeJob">Cancel</button>${DM==='sched'?'<button class="btn grow" data-act="saveJob">Schedule job</button><button class="btn pri grow" data-act="schedInv">Create invoice</button>':(j.status==='upcoming'?'<button class="btn pri grow" data-act="saveInvJob">Create invoice</button>':'<button class="btn pri" data-act="saveJob">Save</button>')}</div></div></div>`);
+ <div class="sfoot">${DNEW?'':'<button class="btn bad" data-act="delJob" data-arm="1">Delete job</button>'}<span class="sp"></span><button class="btn" data-act="closeJob">Cancel</button>${DM==='sched'?'<button class="btn pri grow" data-act="saveJob">Schedule job</button>':(j.status==='upcoming'?'<button class="btn pri grow" data-act="saveInvJob">Create invoice</button>':'<button class="btn pri" data-act="saveJob">Save</button>')}</div></div></div>`);
  setTop(y)}
 function refreshTotals(){const c=matchCust(D.custName);const t=totals(Object.assign({},D,{customerId:c?c.id:''}));
  if($('#t-sub')){$('#t-sub').textContent=money(t.sub);$('#t-tax').textContent=money(t.tax);$('#t-tot').textContent=money(t.total)}
@@ -550,6 +550,7 @@ function saveJob(thenInvoice){
  else if(!c.address&&D.address)c.address=D.address;
  const j=JSON.parse(JSON.stringify(D));j.customerId=c.id;delete j.custName;delete j.newPhone;delete j._prevType;delete j._auto;delete j._typeSet;
  j.lines=j.lines.filter(l=>String(l.desc).trim()||num(l.rate)).map(l=>({id:l.id,desc:l.desc,qty:num(l.qty),rate:num(l.rate),tax:!!l.tax}));
+ if(DM==='inv'){const f=j.lines[0];if(f&&svcTypes().some(t=>t.name===f.desc))j.type=f.desc}
  if(!j.loc){const p=photosOf(j.id).find(p=>p.lat!=null);if(p)j.loc={lat:p.lat,lon:p.lon,src:'photo'}}
  if(thenInvoice)j.status='invoiced';
  if(j.status!=='upcoming'){assignInv(j)}
