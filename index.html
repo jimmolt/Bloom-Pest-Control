@@ -282,7 +282,8 @@ function hideCustPop(){const p=$('#custpop');if(p)p.hidden=true}
 function showCustPop(){const pop=$('#custpop');if(!pop||!D)return;const q=(D.custName||'').trim(),m=custMatches(q);
  if(!m.length||(m.length===1&&m[0].name.toLowerCase()===q.toLowerCase())){pop.hidden=true;return}
  const html=m.map(c=>`<button type="button" class="acitem" data-act="pickCust" data-id="${c.id}"><b>${esc(c.name)}</b><span>${esc(c.address||c.phone||'')}</span></button>`).join('');if(pop.dataset.h!==html){pop.innerHTML=html;pop.dataset.h=html}pop.hidden=false}
-function setSiteAddr(c){applyCustType(c);if(!c||!c.address)return;if(!D.address||D.address===D._auto){D.address=c.address;D._auto=c.address;const a=document.querySelector('[data-f=address]');if(a)a.value=c.address}}
+function addrParts(c){if(!c)return{street:'',city:'',state:'',zip:''};if(c.street!=null||c.city||c.state||c.zip)return{street:c.street||'',city:c.city||'',state:c.state||'',zip:c.zip||''};return{street:c.address||'',city:'',state:'',zip:''}}
+function setSiteAddr(c){applyCustType(c);if(!c||!c.address)return;if(!D.address||D.address===D._auto){const ap=addrParts(c);Object.assign(D,ap);D.address=c.address;D._auto=c.address;['street','city','state','zip'].forEach(k=>{const a=document.querySelector('[data-f='+k+']');if(a)a.value=ap[k]})}}
 
 function fmtPhoneLive(v){let d=String(v||'').replace(/\D/g,'');if(d.length>10&&d[0]==='1')d=d.slice(1);d=d.slice(0,10);
  if(!d)return '';if(d.length<=3)return '('+d;if(d.length<=6)return '('+d.slice(0,3)+') '+d.slice(3);return '('+d.slice(0,3)+') '+d.slice(3,6)+'-'+d.slice(6)}
@@ -412,7 +413,7 @@ function vJobs(st){
  else{const sorted=list.slice().sort((a,b)=>st==='invoiced'?(a.invDate||'').localeCompare(b.invDate||''):(b.paidDate||'').localeCompare(a.paidDate||''));
   body=`<div class="list">${sorted.map(jobCard).join('')}</div>`}
  const sum=list.reduce((a,j)=>a+totals(j).total,0);
- return`<div class="vhead"><div><h2>${titles[0]}</h2><p>${titles[1]}${list.length?` ${list.length} job${list.length>1?'s':''}, <span class="num">${money(sum)}</span>.`:''}</p></div>${st==='upcoming'?`<div style="display:flex;gap:6px"><button class="btn sm${S.upView==='cal'?'':' pri'}" data-act="upView" data-v="list">List</button><button class="btn sm${S.upView==='cal'?' pri':''}" data-act="upView" data-v="cal">Calendar</button></div>`:''}</div>${body}`}
+ return`<div class="vhead"><div><h2>${titles[0]}</h2><p>${titles[1]}${list.length?` ${list.length} job${list.length>1?'s':''}${st==='upcoming'?'.':`, <span class="num">${money(sum)}</span>.`}`:''}</p></div>${st==='upcoming'?`<div style="display:flex;gap:6px"><button class="btn sm${S.upView==='cal'?'':' pri'}" data-act="upView" data-v="list">List</button><button class="btn sm${S.upView==='cal'?' pri':''}" data-act="upView" data-v="cal">Calendar</button></div>`:''}</div>${body}`}
 
 function vCust(){
  const list=S.customers.filter(c=>hit(custText(c))).sort((a,b)=>a.name.localeCompare(b.name));
@@ -474,7 +475,7 @@ function vSet(){const s=S.settings;
  <label class="ck" style="margin-top:8px"><input type="checkbox" data-sc="tagLocation" ${s.tagLocation?'checked':''}> Tag photos taken in the app with this device's location when allowed</label></fieldset>
  <fieldset><legend>Backup</legend><p class="hint" style="margin-top:0">Data and photos live in this browser on this device. Save a backup regularly and before changing phones or clearing browser data. The backup is an HTML file you can open and read, and Restore reads it back.</p>
  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn pri" data-act="backup">Save backup</button><label class="btn" style="cursor:pointer">Restore from backup<input type="file" id="restore" accept=".html,.htm,.json,text/html,application/json" hidden></label></div></fieldset>
- <p class="hint" style="text-align:center">Bloom Pest Control app, version 2026-11-08 v</p>
+ <p class="hint" style="text-align:center">Bloom Pest Control app, version 2026-11-08 w</p>
  <fieldset><legend>Reset</legend><div style="display:flex;gap:8px;flex-wrap:wrap">${S.sample?'<button class="btn" data-act="clearSample">Clear example data</button>':''}<button class="btn bad" data-act="resetAll" data-arm="1">Erase everything</button></div></fieldset>`}
 
 /* ---------- modal plumbing ---------- */
@@ -492,10 +493,10 @@ function syncLines(){const L=D.lines||[],nt=svcTypes().find(x=>x.name===D.type);
  if(pristine)D.lines=[{id:L[0]?L[0].id:uid(),desc:nt.name,qty:1,rate:nt.rate,tax:L[0]?L[0].tax:true,_o:false}]}
 function applyCustType(c){if(!c||!D||!DNEW||D._typeSet)return;const t=custDefaultType(c);if(!t||t===D.type)return;D.type=t;D._prevType=t;syncLines();const s=document.querySelector('[data-f=type]');if(s)s.value=t;const s0=document.querySelector('select[data-l="0"][data-k="sel"]');if(s0&&D.lines[0]){s0.value=D.lines[0].desc;const r0=document.querySelector('input[data-l="0"][data-k="rate"]');if(r0)r0.value=D.lines[0].rate}}
 function blankJob(custId){const c=custId&&cust(custId);const dt=c&&custDefaultType(c);const t=(dt&&S.settings.jobTypes.find(x=>x.name===dt))||S.settings.jobTypes[0]||{name:'Service',rate:0};
- return{id:uid(),customerId:custId||'',custName:c?c.name:'',newPhone:'',type:t.name,date:today(),time:'',address:c?c.address:'',status:'upcoming',
+ return{id:uid(),customerId:custId||'',custName:c?c.name:'',newPhone:'',type:t.name,date:today(),time:'',address:c?c.address:'',street:addrParts(c).street,city:addrParts(c).city,state:addrParts(c).state,zip:addrParts(c).zip,status:'upcoming',
  lines:[{id:uid(),desc:t.name,qty:1,rate:t.rate,tax:true}],treatment:{pests:'',product:'',epa:'',amount:'',method:'',areas:''},notes:'',invNotes:'',showTreat:true,miles:'',costs:{chem:'',other:''},invNo:'',invDate:'',dueDate:'',paidDate:'',payMethod:'',loc:null}}
 function openJob(id,custId,mode){
- if(id){const j=job(id);D=JSON.parse(JSON.stringify(j));D.custName=cname(j);D.newPhone='';DNEW=false;DM=mode||(j.status==='upcoming'?'sched':'inv');if(DM==='inv'&&D.status==='upcoming')syncLines()}else{D=blankJob(custId);DNEW=true;DM='sched'}
+ if(id){const j=job(id);D=JSON.parse(JSON.stringify(j));D.custName=cname(j);D.newPhone='';if(D.street==null&&!D.city&&!D.state&&!D.zip){D.street=D.address||'';D.city='';D.state='';D.zip=''}DNEW=false;DM=mode||(j.status==='upcoming'?'sched':'inv');if(DM==='inv'&&D.status==='upcoming')syncLines()}else{D=blankJob(custId);DNEW=true;DM='sched'}
  D._prevType=D.type;renderJob()}
 function matchCust(name){const n=(name||'').trim().toLowerCase();return n?S.customers.find(c=>c.name.toLowerCase()===n):null}
 function renderJob(){const y=sbodyTop(),j=D,tt=totals(Object.assign({},j,{customerId:(matchCust(j.custName)||{}).id}));const mc=matchCust(j.custName);
@@ -506,7 +507,10 @@ function renderJob(){const y=sbodyTop(),j=D,tt=totals(Object.assign({},j,{custom
  <fieldset><legend>Customer and site</legend><div class="fg">
   <div class="wide acwrap"><label class="f">Customer<input id="f-cust" data-f="custName" value="${esc(j.custName)}" placeholder="Type a customer name" autocomplete="off" autocorrect="off" autocapitalize="words" spellcheck="false"></label><div id="custpop" class="acpop" hidden></div></div>
   <div class="wide" id="newbox" ${mc?'hidden':''}><div class="hint" style="margin:0 0 6px">New customer. They are added to Customers when you save.</div><label class="f">Phone<input data-f="newPhone" value="${esc(j.newPhone)}" inputmode="tel" placeholder="(555) 555-5555"></label></div>
-  <label class="f wide">Service address<input data-f="address" value="${esc(j.address)}"></label>
+  <label class="f wide">Street address<input data-f="street" value="${esc(j.street)}" autocomplete="off"></label>
+  <label class="f">City<input data-f="city" value="${esc(j.city)}" autocomplete="off"></label>
+  <label class="f">State<input data-f="state" value="${esc(j.state)}" maxlength="2" autocapitalize="characters" placeholder="NE" autocomplete="off"></label>
+  <label class="f">ZIP<input data-f="zip" value="${esc(j.zip)}" inputmode="numeric" maxlength="10" autocomplete="off"></label>
   ${gps}<div class="wide"><button class="btn sm" data-act="useLoc">Save my current location for this job</button></div></div></fieldset>
  <fieldset><legend>${DM==='sched'?'Schedule':'Service date'}</legend><div class="fg">
   ${DM==='sched'?`<label class="f">Service type<select data-f="type">${S.settings.jobTypes.map(t=>`<option ${t.name===j.type?'selected':''}>${esc(t.name)}</option>`).join('')}${S.settings.jobTypes.some(t=>t.name===j.type)?'':`<option selected>${esc(j.type)}</option>`}</select></label>`:''}
@@ -542,9 +546,9 @@ function refreshTotals(){const c=matchCust(D.custName);const t=totals(Object.ass
 function saveJob(thenInvoice){
  const name=capWords((D.custName||'').trim());if(!name){toast('Enter a customer name');return false}if(!D.date){toast('Pick a date');return false}
  let c=matchCust(name);
- if(!c){c={id:uid(),name,kind:'',phone:fmtPhoneSave(D.newPhone||''),email:'',address:D.address||'',taxExempt:false,notes:'',defaultType:D.type};S.customers.push(c)}
- else if(!c.address&&D.address)c.address=D.address;
- const j=JSON.parse(JSON.stringify(D));j.customerId=c.id;delete j.custName;delete j.newPhone;delete j._prevType;delete j._auto;delete j._typeSet;
+ if(!c){c={id:uid(),name,kind:'',phone:fmtPhoneSave(D.newPhone||''),email:'',street:D.street||'',city:D.city||'',state:D.state||'',zip:D.zip||'',address:composeAddr(D),taxExempt:false,notes:'',defaultType:D.type};S.customers.push(c)}
+ else if(!c.address&&D.address){Object.assign(c,{street:D.street||'',city:D.city||'',state:D.state||'',zip:D.zip||'',address:composeAddr(D)})}
+ D.address=composeAddr(D);const j=JSON.parse(JSON.stringify(D));j.customerId=c.id;delete j.custName;delete j.newPhone;delete j._prevType;delete j._auto;delete j._typeSet;
  j.lines=j.lines.filter(l=>String(l.desc).trim()||num(l.rate)).map(l=>({id:l.id,desc:l.desc,qty:num(l.qty),rate:num(l.rate),tax:!!l.tax}));
  if(DM==='inv'){const f=j.lines[0];if(f&&svcTypes().some(t=>t.name===f.desc))j.type=f.desc}
  if(!j.loc){const p=photosOf(j.id).find(p=>p.lat!=null);if(p)j.loc={lat:p.lat,lon:p.lon,src:'photo'}}
@@ -739,7 +743,7 @@ function arm(el,label){if(el.dataset.armed){return true}el.dataset.armed='1';con
 document.addEventListener('click',e=>{if(!e.target.closest('.acwrap'))hideCustPop();const el=e.target.closest('[data-act]');if(!el)return;if(el.tagName==='SELECT')return;const f=acts[el.dataset.act];if(f){e.preventDefault();f(el)}});
 function setPath(o,p,v){const a=p.split('.');while(a.length>1)o=o[a.shift()];o[a[0]]=v}
 function onField(e){const t=e.target;
- if(e.type==='input'){if(t.id==='cu-phone'||t.dataset.f==='newPhone'||t.dataset.s==='phone'){const v=fmtPhoneLive(t.value);if(v!==t.value)t.value=v}else if(t.id==='cu-state'){const v=t.value.toUpperCase().replace(/[^A-Z]/g,'');if(v!==t.value)t.value=v}}
+ if(e.type==='input'){if(t.id==='cu-phone'||t.dataset.f==='newPhone'||t.dataset.s==='phone'){const v=fmtPhoneLive(t.value);if(v!==t.value)t.value=v}else if(t.id==='cu-state'||t.dataset.f==='state'){const v=t.value.toUpperCase().replace(/[^A-Z]/g,'');if(v!==t.value)t.value=v}}
  if(t.id==='q'){q=t.value;render();return}
  if(t.id==='taxYear'){taxYear=+t.value;render();return}
  if(t.dataset.s){const k=t.dataset.s;S.settings[k]=t.type==='number'?num(t.value):t.value;persist();return}
@@ -750,7 +754,7 @@ function onField(e){const t=e.target;
  if(t.dataset.pc){const p=P.find(p=>p.id===t.dataset.pc);if(p){p.caption=t.value;if(e.type==='change')idbPut(p)}return}
  if(t.dataset.pi){const p=P.find(p=>p.id===t.dataset.pi);if(p){p.onInvoice=t.checked;idbPut(p)}return}
  if(t.id==='cam'||t.id==='lib'){if(e.type==='change')addPhotos(t.files,t.id==='cam');return}
- if(t.dataset.f!==undefined){const k=t.dataset.f;setPath(D,k,t.type==='checkbox'?t.checked:t.value);
+ if(t.dataset.f!==undefined){const k=t.dataset.f;setPath(D,k,t.type==='checkbox'?t.checked:t.value);if(k==='street'||k==='city'||k==='state'||k==='zip'){D.address=composeAddr(D);return}
   if(k==='custName'){const c=matchCust(D.custName);$('#newbox').hidden=!!c;if(c)setSiteAddr(c);if(e.type==='input')showCustPop();refreshTotals()}
   else if(k==='type'&&e.type==='change'){D._typeSet=true;syncLines();D._prevType=D.type;renderJob()}
   else if(k==='status'){renderJob()}
