@@ -157,6 +157,8 @@ label.ck input{width:20px;height:20px;accent-color:var(--brand)}
 .ph input[type=text]{border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:6px 8px;width:100%}
 .gps{font-size:11px;color:var(--muted);overflow-wrap:anywhere}
 .hist{display:grid;gap:8px}
+.hist div.hphotos{border:0;padding:0;background:none;cursor:default;display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.hphotos img{width:68px;height:68px;object-fit:cover;border-radius:8px;border:1px solid var(--line);cursor:zoom-in}
 .hist div{border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:var(--surface);cursor:pointer}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;z-index:80;font-weight:600;max-width:90%}
 
@@ -449,7 +451,7 @@ function vSet(){const s=S.settings;
  <label class="ck" style="margin-top:8px"><input type="checkbox" data-sc="tagLocation" ${s.tagLocation?'checked':''}> Tag photos taken in the app with this device's location when allowed</label></fieldset>
  <fieldset><legend>Backup</legend><p class="hint" style="margin-top:0">Data and photos live in this browser on this device. Save a backup regularly and before changing phones or clearing browser data. The backup is an HTML file you can open and read, and Restore reads it back.</p>
  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn pri" data-act="backup">Save backup</button><label class="btn" style="cursor:pointer">Restore from backup<input type="file" id="restore" accept=".html,.htm,.json,text/html,application/json" hidden></label></div></fieldset>
- <p class="hint" style="text-align:center">Bloom Pest Control app, version 2026-11-07 t</p>
+ <p class="hint" style="text-align:center">Bloom Pest Control app, version 2026-11-08 u</p>
  <fieldset><legend>Reset</legend><div style="display:flex;gap:8px;flex-wrap:wrap">${S.sample?'<button class="btn" data-act="clearSample">Clear example data</button>':''}<button class="btn bad" data-act="resetAll" data-arm="1">Erase everything</button></div></fieldset>`}
 
 /* ---------- modal plumbing ---------- */
@@ -548,7 +550,7 @@ function openCust(id){const c=id?cust(id):{id:'',name:'',kind:'',phone:'',email:
   <label class="f wide">Private notes<textarea id="cu-notes">${esc(c.notes)}</textarea></label></div>
   <label class="ck" style="margin-top:10px"><input type="checkbox" id="cu-tx" ${c.taxExempt?'checked':''}> Tax exempt</label></fieldset>
  ${id?`<fieldset><legend>Job and spray history</legend>${js.length?`<div class="hist">${js.map(j=>{const t=j.treatment||{};const det=[t.pests&&'Pests: '+t.pests,t.product&&'Product: '+t.product,t.method].filter(Boolean).join(' · ');
-  return`<div data-act="openJob" data-id="${j.id}"><b>${fmtDate(j.date)}</b> · ${esc(j.type)} · ${j.status} · <span class="num">${money(totals(j).total)}</span>${det?`<div class="sub" style="color:var(--muted);font-size:13px">${esc(det)}</div>`:''}</div>`}).join('')}</div>`:'<div class="empty">No jobs yet.</div>'}</fieldset>`:''}</div>
+  return`<div data-act="openJob" data-id="${j.id}"><b>${fmtDate(j.date)}</b> · ${esc(j.type)} · ${j.status} · <span class="num">${money(totals(j).total)}</span>${det?`<div class="sub" style="color:var(--muted);font-size:13px">${esc(det)}</div>`:''}${photosOf(j.id).length?`<div class="hphotos">${photosOf(j.id).map(p=>`<img src="${p.data}" alt="Job photo" title="${esc(p.caption)}" data-act="viewPhoto" data-id="${p.id}">`).join('')}</div>`:''}</div>`}).join('')}</div>`:'<div class="empty">No jobs yet.</div>'}</fieldset>`:''}</div>
  <div class="sfoot">${id?'<button class="btn bad" data-act="delCust" data-id="'+id+'" data-arm="1">Delete</button>':''}<span class="sp"></span>${id?`<button class="btn" data-act="newJobFor" data-id="${id}">+ New job</button>`:''}<button class="btn pri" data-act="saveCust" data-id="${id||''}">Save</button></div></div></div>`)}
 
 /* ---------- invoice ---------- */
