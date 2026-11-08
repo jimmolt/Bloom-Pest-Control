@@ -234,9 +234,9 @@ const PAY=['Check','Cash','Card','ACH / bank transfer','Other'];
 /* ---------- state ---------- */
 const KEY='bloom-pest-control-v1';
 let canStore=true;
-function defaults(){return{v:1,sample:false,tab:'dashboard',nextInv:1,customers:[],jobs:[],expenses:[],
+function defaults(){return{v:1,sample:false,tab:'upcoming',nextInv:1,customers:[],jobs:[],expenses:[],
  settings:{bizName:'Bloom Pest Control',phone:'',email:'',address:'',license:'',taxRate:0,dueDays:15,terms:'Payment due within 15 days of invoice date.',footer:'Thank you for your business.',
-  mileRate:0.725,showDashboard:true,tagLocation:true,
+  mileRate:0.725,tagLocation:true,
   jobTypes:[{name:'Commercial building',rate:150},{name:'House spray',rate:120},{name:'Grain bin site',rate:250},{name:'Other',rate:0}]}}}
 function load(){try{const r=localStorage.getItem(KEY);if(r){const s=JSON.parse(r);const d=defaults();s.settings=Object.assign(d.settings,s.settings);return s}}catch(e){canStore=false}return null}
 function persist(){try{localStorage.setItem(KEY,JSON.stringify(S));canStore=true}catch(e){canStore=false}}
@@ -347,14 +347,14 @@ const mapLink=(la,lo)=>'https://www.google.com/maps?q='+la+','+lo;
 const fmtGps=(la,lo)=>(+la).toFixed(5)+', '+(+lo).toFixed(5);
 
 /* ---------- rendering: shell ---------- */
-function tabsList(){const t=[];if(S.settings.showDashboard)t.push(['dashboard','Dashboard']);
+function tabsList(){const t=[];
  t.push(['upcoming','Upcoming',S.jobs.filter(j=>j.status==='upcoming').length],['invoiced','Invoiced',S.jobs.filter(j=>j.status==='invoiced').length],['paid','Paid',S.jobs.filter(j=>j.status==='paid').length],['customers','Customers',S.customers.length],['tax','Tax Records'],['settings','Settings']);return t}
 function render(){
- if(S.tab==='dashboard'&&!S.settings.showDashboard)S.tab='upcoming';
+ if(S.tab==='dashboard')S.tab='upcoming';
  $('#tabs').innerHTML=tabsList().map(t=>`<button class="tab" role="tab" aria-selected="${S.tab===t[0]}" data-act="tab" data-id="${t[0]}">${t[1]}${t[2]!=null?`<span class="ct num">${t[2]}</span>`:''}</button>`).join('');
- const ph={dashboard:'Search all jobs and customers',upcoming:'Search upcoming jobs',invoiced:'Search invoiced jobs',paid:'Search paid jobs',customers:'Search customers, addresses, products used',tax:'Search jobs and expenses',settings:''}[S.tab];
+ const ph={upcoming:'Search upcoming jobs',invoiced:'Search invoiced jobs',paid:'Search paid jobs',customers:'Search customers, addresses, products used',tax:'Search jobs and expenses',settings:''}[S.tab];
  $('#searchrow').hidden=S.tab==='settings';$('#q').placeholder=ph||'Search';
- const v={dashboard:vDash,upcoming:()=>vJobs('upcoming'),invoiced:()=>vJobs('invoiced'),paid:()=>vJobs('paid'),customers:vCust,tax:vTax,settings:vSet}[S.tab]||vDash;
+ const v={upcoming:()=>vJobs('upcoming'),invoiced:()=>vJobs('invoiced'),paid:()=>vJobs('paid'),customers:vCust,tax:vTax,settings:vSet}[S.tab]||(()=>vJobs('upcoming'));
  const warn=(!canStore?'<div class="banner bad">This browser is not saving data. Export a backup from Settings before closing.</div>':'')+
   (S.sample?'<div class="banner"><span>Example data is loaded so you can see how everything works. Clear it in Settings before entering real jobs.</span><button class="btn sm" data-act="clearSample">Clear examples</button></div>':'');
  const sy=scrollY;$('#view').innerHTML=warn+v();scrollTo(0,sy)}
@@ -388,27 +388,6 @@ function vJobs(st){
   body=`<div class="list">${sorted.map(jobCard).join('')}</div>`}
  const sum=list.reduce((a,j)=>a+totals(j).total,0);
  return`<div class="vhead"><div><h2>${titles[0]}</h2><p>${titles[1]}${list.length?` ${list.length} job${list.length>1?'s':''}, <span class="num">${money(sum)}</span>.`:''}</p></div></div>${body}`}
-
-function vDash(){
- const T=today(),W=addDays(T,7),M=T.slice(0,7),Y=T.slice(0,4);
- const J=S.jobs.filter(jobHit);
- if(q){return`<div class="vhead"><div><h2>Search results</h2><p>${J.length} job${J.length===1?'':'s'} across all stages.</p></div></div>`+
-  (J.length?`<div class="list">${J.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(jobCard).join('')}</div>`:emptyMsg('No jobs match that search.'))}
- const up=S.jobs.filter(j=>j.status==='upcoming'),week=up.filter(j=>j.date>=T&&j.date<=W),toInv=up.filter(j=>j.date<T);
- const open=S.jobs.filter(j=>j.status==='invoiced'),od=open.filter(j=>(j.dueDate||j.invDate)<T);
- const sm=a=>a.reduce((s,j)=>s+totals(j).total,0);
- const paid=S.jobs.filter(j=>j.status==='paid');
- const attn=[...od.map(j=>j),...toInv].slice(0,6);
- const next=up.filter(j=>j.date>=T).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time)).slice(0,5);
- return`<div class="vhead"><div><h2>Dashboard</h2><p>${new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})}</p></div></div>
- <div class="tiles">
-  <div class="tile"><small>Next 7 days</small><b class="num">${week.length}</b><em>${money(sm(week))} scheduled</em></div>
-  <div class="tile ${toInv.length?'warn':''}"><small>Ready to invoice</small><b class="num">${toInv.length}</b><em>${money(sm(toInv))}</em></div>
-  <div class="tile"><small>Owed to you</small><b class="num">${money(sm(open))}</b><em>${open.length} invoice${open.length===1?'':'s'}${od.length?`, ${od.length} overdue`:''}</em></div>
-  <div class="tile"><small>Paid this month</small><b class="num">${money(sm(paid.filter(j=>(j.paidDate||'').startsWith(M))))}</b><em>${money(sm(paid.filter(j=>(j.paidDate||'').startsWith(Y))))} this year</em></div>
- </div>
- <section class="group"><h3>Needs attention</h3>${attn.length?`<div class="list">${attn.map(jobCard).join('')}</div>`:emptyMsg('Nothing overdue and nothing waiting to be invoiced.')}</section>
- <section class="group"><h3>Coming up</h3>${next.length?`<div class="list">${next.map(jobCard).join('')}</div>`:emptyMsg('No jobs scheduled.')}</section>`}
 
 function vCust(){
  const list=S.customers.filter(c=>hit(custText(c))).sort((a,b)=>a.name.localeCompare(b.name));
@@ -467,11 +446,10 @@ function vSet(){const s=S.settings;
  <p class="hint">Invoice numbers run BPC-0001, BPC-0002 and so on. Next number: BPC-${pad4(S.nextInv)}. Customers marked tax exempt are never charged tax.</p></fieldset>
  <fieldset><legend>Service types and default prices</legend><div class="lines">${s.jobTypes.map((t,i)=>`<div class="ln" style="grid-template-columns:1fr 110px auto"><label class="f">Name<input data-jt="${i}" data-k="name" value="${esc(t.name)}"></label><label class="f">Default price<input type="number" data-jt="${i}" data-k="rate" value="${esc(t.rate)}" step="0.01" min="0"></label><button class="btn sm bad" data-act="jtDel" data-id="${i}">Remove</button></div>`).join('')}</div><div style="margin-top:10px"><button class="btn" data-act="jtAdd">+ Add service type</button></div></fieldset>
  <fieldset><legend>Photos</legend>
- <label class="ck" style="margin-top:8px"><input type="checkbox" data-sc="tagLocation" ${s.tagLocation?'checked':''}> Tag photos taken in the app with this device's location when allowed</label>
- <label class="ck" style="margin-top:8px"><input type="checkbox" data-sc="showDashboard" ${s.showDashboard?'checked':''}> Show the Dashboard tab</label></fieldset>
+ <label class="ck" style="margin-top:8px"><input type="checkbox" data-sc="tagLocation" ${s.tagLocation?'checked':''}> Tag photos taken in the app with this device's location when allowed</label></fieldset>
  <fieldset><legend>Backup</legend><p class="hint" style="margin-top:0">Data and photos live in this browser on this device. Save a backup regularly and before changing phones or clearing browser data. The backup is an HTML file you can open and read, and Restore reads it back.</p>
  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn pri" data-act="backup">Save backup</button><label class="btn" style="cursor:pointer">Restore from backup<input type="file" id="restore" accept=".html,.htm,.json,text/html,application/json" hidden></label></div></fieldset>
- <p class="hint" style="text-align:center">Bloom Pest Control app, version 2026-11-07 o</p>
+ <p class="hint" style="text-align:center">Bloom Pest Control app, version 2026-11-07 p</p>
  <fieldset><legend>Reset</legend><div style="display:flex;gap:8px;flex-wrap:wrap">${S.sample?'<button class="btn" data-act="clearSample">Clear example data</button>':''}<button class="btn bad" data-act="resetAll" data-arm="1">Erase everything</button></div></fieldset>`}
 
 /* ---------- modal plumbing ---------- */
