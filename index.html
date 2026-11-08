@@ -71,6 +71,17 @@ h1,h2,h3{font-family:var(--f-display);margin:0;text-wrap:balance;letter-spacing:
 .searchrow input{width:100%;border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:10px 14px;min-height:44px}
 
 main{padding-top:16px;display:flex;flex-direction:column;gap:18px}
+.calbar{display:flex;align-items:center;gap:8px;margin:12px 0 8px}.calbar b{flex:1;text-align:center;font-size:16px}
+.cgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cgrid .wd{text-align:center;font-size:11px;color:var(--muted);font-weight:600;padding:2px 0}
+.cd{min-height:52px;border:1px solid var(--line);border-radius:10px;background:var(--surface);padding:4px 2px;display:flex;flex-direction:column;align-items:center;gap:4px;font:inherit;color:var(--ink);cursor:pointer}
+.cd.blank{border:0;background:none;cursor:default}
+.cd .n{font-size:14px;font-weight:600}
+.cd.today{border-color:var(--up);box-shadow:inset 0 0 0 1px var(--up)}
+.cd.sel{background:var(--up-soft);border-color:var(--up)}
+.cd .dots{display:flex;gap:3px;align-items:center;font-size:10px;color:var(--muted)}
+.cd .dots i{width:7px;height:7px;border-radius:50%;background:var(--up);display:inline-block}.cd .dots i.o{background:var(--inv)}
+.calday{margin-top:14px}.calday h3{margin:0 0 8px;font-size:15px}
 .vhead{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .vhead h2{font-size:22px}
 .vhead p{margin:2px 0 0;color:var(--muted);font-size:13px}
@@ -376,12 +387,24 @@ function jobCard(j){const d=dObj(j.date),t=totals(j),np=photosOf(j.id).length;
  <div class="row">${chipFor(j)}${np?`<span class="chip">${np} photo${np>1?'s':''}</span>`:''}<span class="amt num">${money(t.total)}</span></div>
  <div class="acts">${acts}</div></div></div>`}
 const emptyMsg=(m)=>`<div class="empty">${m}</div>`;
+let calM=null,calSel=null;
+function vCal(list){const T=today();if(!calM)calM=T.slice(0,7);const[y,m]=calM.split('-').map(Number);
+ const start=new Date(y,m-1,1).getDay(),dim=new Date(y,m,0).getDate(),by={};
+ list.forEach(j=>(by[j.date]=by[j.date]||[]).push(j));
+ let cells=['S','M','T','W','T','F','S'].map(x=>`<div class="wd">${x}</div>`).join('')+'<span class="cd blank"></span>'.repeat(start);
+ for(let d=1;d<=dim;d++){const ds=calM+'-'+pad(d),js=by[ds]||[];
+  cells+=`<button class="cd${ds===T?' today':''}${ds===calSel?' sel':''}" data-act="calDay" data-date="${ds}" aria-label="${fmtDate(ds)}, ${js.length} job${js.length===1?'':'s'}"><span class="n">${d}</span>${js.length?`<span class="dots">${js.slice(0,3).map(j=>`<i class="${j.date<T?'o':''}"></i>`).join('')}${js.length>3?'+':''}</span>`:''}</button>`}
+ const label=new Date(y,m-1,1).toLocaleDateString('en-US',{month:'long',year:'numeric'});
+ let panel='';if(calSel){const js=(by[calSel]||[]).slice().sort((a,b)=>(a.time||'').localeCompare(b.time||''));
+  panel=`<section class="calday"><h3>${fmtDate(calSel)}</h3>${js.length?`<div class="list">${js.map(jobCard).join('')}</div>`:emptyMsg('No jobs this day.')}<div style="margin-top:10px"><button class="btn pri" data-act="schedDay" data-date="${calSel}">Schedule job this day</button></div></section>`}
+ return`<div class="calbar"><button class="btn sm" data-act="calNav" data-d="-1" aria-label="Previous month">&lsaquo;</button><b>${label}</b><button class="btn sm" data-act="calNav" data-d="1" aria-label="Next month">&rsaquo;</button><button class="btn sm" data-act="calToday">Today</button></div><div class="cgrid">${cells}</div>${panel}`}
 function vJobs(st){
  const all=S.jobs.filter(j=>j.status===st),list=all.filter(jobHit);
  const T=today(),W=addDays(T,7);
  const titles={upcoming:['Upcoming jobs','Scheduled work and finished jobs waiting to be invoiced.'],invoiced:['Invoiced','Waiting on payment. Oldest first.'],paid:['Paid','Completed and paid. Newest first.']}[st];
  let body='';
- if(!list.length)body=emptyMsg(q?'No jobs match that search.':({upcoming:'No upcoming jobs. Tap Schedule job at the top to add one.',invoiced:'No open invoices. Tap Create invoice at the top, or open an upcoming job.',paid:'Nothing paid yet.'}[st]));
+ if(st==='upcoming'&&S.upView==='cal')body=vCal(list);
+ else if(!list.length)body=emptyMsg(q?'No jobs match that search.':({upcoming:'No upcoming jobs. Tap Schedule job at the top to add one.',invoiced:'No open invoices. Tap Create invoice at the top, or open an upcoming job.',paid:'Nothing paid yet.'}[st]));
  else if(st==='upcoming'){
   const sorted=list.slice().sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
   const g=[['Needs invoice (date has passed)',sorted.filter(j=>j.date<T)],['Today',sorted.filter(j=>j.date===T)],['Next 7 days',sorted.filter(j=>j.date>T&&j.date<=W)],['Later',sorted.filter(j=>j.date>W)]];
@@ -389,7 +412,7 @@ function vJobs(st){
  else{const sorted=list.slice().sort((a,b)=>st==='invoiced'?(a.invDate||'').localeCompare(b.invDate||''):(b.paidDate||'').localeCompare(a.paidDate||''));
   body=`<div class="list">${sorted.map(jobCard).join('')}</div>`}
  const sum=list.reduce((a,j)=>a+totals(j).total,0);
- return`<div class="vhead"><div><h2>${titles[0]}</h2><p>${titles[1]}${list.length?` ${list.length} job${list.length>1?'s':''}, <span class="num">${money(sum)}</span>.`:''}</p></div></div>${body}`}
+ return`<div class="vhead"><div><h2>${titles[0]}</h2><p>${titles[1]}${list.length?` ${list.length} job${list.length>1?'s':''}, <span class="num">${money(sum)}</span>.`:''}</p></div>${st==='upcoming'?`<div style="display:flex;gap:6px"><button class="btn sm${S.upView==='cal'?'':' pri'}" data-act="upView" data-v="list">List</button><button class="btn sm${S.upView==='cal'?' pri':''}" data-act="upView" data-v="cal">Calendar</button></div>`:''}</div>${body}`}
 
 function vCust(){
  const list=S.customers.filter(c=>hit(custText(c))).sort((a,b)=>a.name.localeCompare(b.name));
@@ -451,7 +474,7 @@ function vSet(){const s=S.settings;
  <label class="ck" style="margin-top:8px"><input type="checkbox" data-sc="tagLocation" ${s.tagLocation?'checked':''}> Tag photos taken in the app with this device's location when allowed</label></fieldset>
  <fieldset><legend>Backup</legend><p class="hint" style="margin-top:0">Data and photos live in this browser on this device. Save a backup regularly and before changing phones or clearing browser data. The backup is an HTML file you can open and read, and Restore reads it back.</p>
  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn pri" data-act="backup">Save backup</button><label class="btn" style="cursor:pointer">Restore from backup<input type="file" id="restore" accept=".html,.htm,.json,text/html,application/json" hidden></label></div></fieldset>
- <p class="hint" style="text-align:center">Bloom Pest Control app, version 2026-11-08 u</p>
+ <p class="hint" style="text-align:center">Bloom Pest Control app, version 2026-11-08 v</p>
  <fieldset><legend>Reset</legend><div style="display:flex;gap:8px;flex-wrap:wrap">${S.sample?'<button class="btn" data-act="clearSample">Clear example data</button>':''}<button class="btn bad" data-act="resetAll" data-arm="1">Erase everything</button></div></fieldset>`}
 
 /* ---------- modal plumbing ---------- */
@@ -653,6 +676,11 @@ function payDlg(id){const j=job(id);if(!j)return;
 /* ---------- events ---------- */
 const acts={
  tab(el){S.tab=el.dataset.id;q='';$('#q').value='';persist();render();scrollTo(0,0)},
+ calNav(el){const[y,m]=calM.split('-').map(Number);calM=ymd(new Date(y,m-1+(+el.dataset.d),1)).slice(0,7);calSel=null;render()},
+ calToday(){calM=today().slice(0,7);calSel=today();render()},
+ calDay(el){calSel=calSel===el.dataset.date?null:el.dataset.date;render()},
+ upView(el){S.upView=el.dataset.v;persist();render()},
+ schedDay(el){closeModal();openJob(null);D.date=el.dataset.date;renderJob()},
  newJob(){openJob(null)},
  newInv(){D=blankJob();DNEW=true;DM='inv';D._prevType=D.type;renderJob()},
  newJobFor(el){closeModal();openJob(null,el.dataset.id)},
