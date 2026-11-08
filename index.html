@@ -475,12 +475,12 @@ function vSet(){const s=S.settings;
  <label class="ck" style="margin-top:8px"><input type="checkbox" data-sc="tagLocation" ${s.tagLocation?'checked':''}> Tag photos taken in the app with this device's location when allowed</label></fieldset>
  <fieldset><legend>Backup</legend><p class="hint" style="margin-top:0">Data and photos live in this browser on this device. Save a backup regularly and before changing phones or clearing browser data. The backup is an HTML file you can open and read, and Restore reads it back.</p>
  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn pri" data-act="backup">Save backup</button><label class="btn" style="cursor:pointer">Restore from backup<input type="file" id="restore" accept=".html,.htm,.json,text/html,application/json" hidden></label></div></fieldset>
- <p class="hint" style="text-align:center">Bloom Pest Control app, version 2026-11-08 x</p>
+ <p class="hint" style="text-align:center">Bloom Pest Control app, version 2026-11-08 y</p>
  <fieldset><legend>Reset</legend><div style="display:flex;gap:8px;flex-wrap:wrap">${S.sample?'<button class="btn" data-act="clearSample">Clear example data</button>':''}<button class="btn bad" data-act="resetAll" data-arm="1">Erase everything</button></div></fieldset>`}
 
 /* ---------- modal plumbing ---------- */
 function openModal(html){const m=$('#modal');m.innerHTML=html;document.body.style.overflow='hidden'}
-function closeModal(){$('#modal').innerHTML='';document.body.style.overflow='';D=null}
+function closeModal(){clearDraft();$('#modal').innerHTML='';document.body.style.overflow='';D=null}
 function sbodyTop(){const b=document.querySelector('#modal .sbody');return b?b.scrollTop:0}
 function setTop(y){const b=document.querySelector('#modal .sbody');if(b)b.scrollTop=y}
 
@@ -790,9 +790,19 @@ function restore(f){if(!f)return;const r=new FileReader();r.onload=()=>{try{cons
  const d=defaults();o.data.settings=Object.assign(d.settings,o.data.settings);S=o.data;idbClear();P=o.photos||[];P.forEach(idbPut);persist();render();toast('Backup restored')}catch(e){toast('That file is not a Bloom backup')}};r.readAsText(f)}
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('#modal').innerHTML&&!$('.lightbox')){if(D)acts.closeJob();else closeModal()}});
 
+/* ---------- autosave of whatever is being typed ---------- */
+const DK='bloom-pest-draft';
+function saveDraft(){try{if(D&&document.querySelector('#modal .sheet'))localStorage.setItem(DK,JSON.stringify({k:'job',D:D,DM:DM,DNEW:DNEW}));else if(!D&&document.querySelector('#modal [id^=cu-]')){const v={};document.querySelectorAll('#modal [id^=cu-]').forEach(i=>{v[i.id]=i.type==='checkbox'?i.checked:i.value});const b=document.querySelector('#modal [data-act=saveCust]');localStorage.setItem(DK,JSON.stringify({k:'cust',id:b?b.dataset.id:'',v:v}))}}catch(e){}}
+function clearDraft(){try{localStorage.removeItem(DK)}catch(e){}}
+function restoreDraft(){let d=null;try{d=JSON.parse(localStorage.getItem(DK)||'null')}catch(e){}if(!d||$('#modal').innerHTML)return;
+ if(d.k==='job'&&d.D){if(!DNEWok(d))return;D=d.D;DM=d.DM;DNEW=d.DNEW;renderJob();toast('Restored what you were entering')}
+ else if(d.k==='cust'&&d.v){if(d.id&&!cust(d.id)){clearDraft();return}openCust(d.id||null);Object.keys(d.v).forEach(k=>{const e=document.getElementById(k);if(e){if(e.type==='checkbox')e.checked=!!d.v[k];else e.value=d.v[k]}});toast('Restored what you were entering')}}
+function DNEWok(d){return d.DNEW||!!S.jobs.find(j=>j.id===d.D.id)}
+['input','change','click'].forEach(ev=>document.addEventListener(ev,()=>{setTimeout(saveDraft,0)}));
+
 /* ---------- boot ---------- */
 render();
-openIDB().then(db=>{idb=db;return idbAll()}).then(p=>{P=p;render()});
+openIDB().then(db=>{idb=db;return idbAll()}).then(p=>{P=p;render();restoreDraft()});
 })();
 </script>
 </body>
