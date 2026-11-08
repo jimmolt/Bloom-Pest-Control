@@ -449,7 +449,7 @@ function vSet(){const s=S.settings;
  <label class="ck" style="margin-top:8px"><input type="checkbox" data-sc="tagLocation" ${s.tagLocation?'checked':''}> Tag photos taken in the app with this device's location when allowed</label></fieldset>
  <fieldset><legend>Backup</legend><p class="hint" style="margin-top:0">Data and photos live in this browser on this device. Save a backup regularly and before changing phones or clearing browser data. The backup is an HTML file you can open and read, and Restore reads it back.</p>
  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn pri" data-act="backup">Save backup</button><label class="btn" style="cursor:pointer">Restore from backup<input type="file" id="restore" accept=".html,.htm,.json,text/html,application/json" hidden></label></div></fieldset>
- <p class="hint" style="text-align:center">Bloom Pest Control app, version 2026-11-07 p</p>
+ <p class="hint" style="text-align:center">Bloom Pest Control app, version 2026-11-07 q</p>
  <fieldset><legend>Reset</legend><div style="display:flex;gap:8px;flex-wrap:wrap">${S.sample?'<button class="btn" data-act="clearSample">Clear example data</button>':''}<button class="btn bad" data-act="resetAll" data-arm="1">Erase everything</button></div></fieldset>`}
 
 /* ---------- modal plumbing ---------- */
@@ -515,7 +515,7 @@ function renderJob(){const y=sbodyTop(),j=D,tt=totals(Object.assign({},j,{custom
 function refreshTotals(){const c=matchCust(D.custName);const t=totals(Object.assign({},D,{customerId:c?c.id:''}));
  if($('#t-sub')){$('#t-sub').textContent=money(t.sub);$('#t-tax').textContent=money(t.tax);$('#t-tot').textContent=money(t.total)}}
 function saveJob(thenInvoice){
- const name=(D.custName||'').trim();if(!name){toast('Enter a customer name');return false}if(!D.date){toast('Pick a date');return false}
+ const name=capWords((D.custName||'').trim());if(!name){toast('Enter a customer name');return false}if(!D.date){toast('Pick a date');return false}
  let c=matchCust(name);
  if(!c){c={id:uid(),name,kind:'Home',phone:fmtPhoneSave(D.newPhone||''),email:'',address:D.address||'',taxExempt:false,notes:'',defaultType:D.type};S.customers.push(c)}
  else if(!c.address&&D.address)c.address=D.address;
@@ -537,7 +537,7 @@ function openCust(id){const c=id?cust(id):{id:'',name:'',kind:'Home',phone:'',em
  const js=id?S.jobs.filter(j=>j.customerId===id).sort((a,b)=>b.date.localeCompare(a.date)):[];
  openModal(`<div class="backdrop"><div class="sheet" role="dialog" aria-label="Customer"><header><h2>${id?esc(c.name):'New customer'}</h2><button class="btn sm" data-act="closeModal">Close</button></header>
  <div class="sbody"><fieldset><legend>Details</legend><div class="fg">
-  <label class="f wide">Name<input id="cu-name" value="${esc(c.name)}"></label>
+  <label class="f wide">Name<input id="cu-name" value="${esc(c.name)}" autocapitalize="words" autocomplete="off"></label>
   <label class="f">Type<select id="cu-kind">${KINDS.map(k=>`<option ${k===c.kind?'selected':''}>${k}</option>`).join('')}</select></label>
   <label class="f">Usual service<select id="cu-svc">${svcTypes().map(t=>`<option ${t.name===usual?'selected':''}>${esc(t.name)}</option>`).join('')}</select></label>
   <label class="f">Phone<input id="cu-phone" value="${esc(c.phone)}" inputmode="tel" placeholder="(555) 555-5555" autocomplete="off"></label><label class="f">Email<input id="cu-email" value="${esc(c.email)}" inputmode="email"></label>
@@ -684,7 +684,7 @@ const acts={
  async useLoc(){toast('Getting location…');const p=await devicePos();if(p){D.loc={lat:p.lat,lon:p.lon,src:'device'};renderJob()}else toast('Location not available here. Photos with GPS also fill this in.')},
  newCust(){openCust(null)},
  openCust(el){closeModal();openCust(el.dataset.id)},
- saveCust(el){const name=$('#cu-name').value.trim();if(!name){toast('Enter a name');return}
+ saveCust(el){const name=capWords($('#cu-name').value.trim());if(!name){toast('Enter a name');return}
   const dup=S.customers.find(c=>c.name.toLowerCase()===name.toLowerCase()&&c.id!==el.dataset.id);if(dup){toast('A customer with that name already exists');return}
   let c=el.dataset.id?cust(el.dataset.id):null;const isNew=!c;if(isNew)c={id:uid()};
   const ad={street:$('#cu-street').value.trim(),city:$('#cu-city').value.trim(),state:$('#cu-state').value.trim(),zip:$('#cu-zip').value.trim()};
@@ -740,6 +740,8 @@ document.addEventListener('focusout',()=>{clearTimeout(kbT);kbT=setTimeout(syncK
 document.addEventListener('pointerdown',e=>{ptrDown=!!e.target.closest('.sfoot-inline')},true);
 document.addEventListener('pointerup',()=>{if(ptrDown)setTimeout(()=>{ptrDown=false;syncKb()},500)},true);
 document.addEventListener('focusin',e=>{if(e.target.id==='f-cust')showCustPop()});
+function capWords(s){return String(s||'').replace(/(^|\s)([a-z])/g,(m,a,b)=>a+b.toUpperCase())}
+document.addEventListener('input',e=>{const t=e.target;if(!t||(t.id!=='cu-name'&&t.id!=='f-cust'))return;const v=capWords(t.value);if(v!==t.value){const a=t.selectionStart,b=t.selectionEnd;t.value=v;try{t.setSelectionRange(a,b)}catch(x){}}});
 document.addEventListener('input',onField);document.addEventListener('change',onField);
 async function addPhotos(files,fromCam){if(!files||!files.length)return;let n=0;
  for(const f of Array.from(files)){try{const buf=await f.arrayBuffer();const ex=exifRead(buf);const data=await shrink(f,1600);
