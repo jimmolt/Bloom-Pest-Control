@@ -288,8 +288,8 @@ function setSiteAddr(c){applyCustType(c);if(!c||!c.address)return;if(!D.address|
 function fmtPhoneLive(v){let d=String(v||'').replace(/\D/g,'');if(d.length>10&&d[0]==='1')d=d.slice(1);d=d.slice(0,10);
  if(!d)return '';if(d.length<=3)return '('+d;if(d.length<=6)return '('+d.slice(0,3)+') '+d.slice(3);return '('+d.slice(0,3)+') '+d.slice(3,6)+'-'+d.slice(6)}
 function fmtPhoneSave(v){v=String(v||'').trim();const d=v.replace(/\D/g,'');return d.length>=10?fmtPhoneLive(v):v}
-function composeAddr(c){const cs=[[c.city,c.state].filter(Boolean).join(', '),c.zip].filter(Boolean).join(' ');return [c.street,cs].filter(Boolean).join(', ')}
-function addrLines(c){if(c&&(c.street||c.city||c.state||c.zip)){const cs=[[c.city,c.state].filter(Boolean).join(', '),c.zip].filter(Boolean).join(' ');return [c.street,cs].filter(Boolean)}return c&&c.address?[c.address]:[]}
+function composeAddr(c){if(!c.street&&!c.city&&!c.zip)return'';const cs=[[c.city,c.state].filter(Boolean).join(', '),c.zip].filter(Boolean).join(' ');return [c.street,cs].filter(Boolean).join(', ')}
+function addrLines(c){if(c&&(c.street||c.city||c.zip)){const cs=[[c.city,c.state].filter(Boolean).join(', '),c.zip].filter(Boolean).join(' ');return [c.street,cs].filter(Boolean)}return c&&c.address?[c.address]:[]}
 function backupHtml(){
  const data=JSON.stringify({app:'bloom-pest-control',saved:new Date().toISOString(),data:S,photos:P}).replace(/</g,'\\u003c');
  const T=(h,rows)=>'<table><thead><tr>'+h.map(x=>'<th>'+x+'</th>').join('')+'</tr></thead><tbody>'+(rows.length?rows.map(r=>'<tr>'+r.map(x=>'<td>'+esc(x)+'</td>').join('')+'</tr>').join(''):'<tr><td colspan="'+h.length+'">None</td></tr>')+'</tbody></table>';
@@ -475,7 +475,7 @@ function vSet(){const s=S.settings;
  <label class="ck" style="margin-top:8px"><input type="checkbox" data-sc="tagLocation" ${s.tagLocation?'checked':''}> Tag photos taken in the app with this device's location when allowed</label></fieldset>
  <fieldset><legend>Backup</legend><p class="hint" style="margin-top:0">Data and photos live in this browser on this device. Save a backup regularly and before changing phones or clearing browser data. The backup is an HTML file you can open and read, and Restore reads it back.</p>
  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn pri" data-act="backup">Save backup</button><label class="btn" style="cursor:pointer">Restore from backup<input type="file" id="restore" accept=".html,.htm,.json,text/html,application/json" hidden></label></div></fieldset>
- <p class="hint" style="text-align:center">Bloom Pest Control app, version 2026-11-08 w</p>
+ <p class="hint" style="text-align:center">Bloom Pest Control app, version 2026-11-08 x</p>
  <fieldset><legend>Reset</legend><div style="display:flex;gap:8px;flex-wrap:wrap">${S.sample?'<button class="btn" data-act="clearSample">Clear example data</button>':''}<button class="btn bad" data-act="resetAll" data-arm="1">Erase everything</button></div></fieldset>`}
 
 /* ---------- modal plumbing ---------- */
@@ -493,7 +493,7 @@ function syncLines(){const L=D.lines||[],nt=svcTypes().find(x=>x.name===D.type);
  if(pristine)D.lines=[{id:L[0]?L[0].id:uid(),desc:nt.name,qty:1,rate:nt.rate,tax:L[0]?L[0].tax:true,_o:false}]}
 function applyCustType(c){if(!c||!D||!DNEW||D._typeSet)return;const t=custDefaultType(c);if(!t||t===D.type)return;D.type=t;D._prevType=t;syncLines();const s=document.querySelector('[data-f=type]');if(s)s.value=t;const s0=document.querySelector('select[data-l="0"][data-k="sel"]');if(s0&&D.lines[0]){s0.value=D.lines[0].desc;const r0=document.querySelector('input[data-l="0"][data-k="rate"]');if(r0)r0.value=D.lines[0].rate}}
 function blankJob(custId){const c=custId&&cust(custId);const dt=c&&custDefaultType(c);const t=(dt&&S.settings.jobTypes.find(x=>x.name===dt))||S.settings.jobTypes[0]||{name:'Service',rate:0};
- return{id:uid(),customerId:custId||'',custName:c?c.name:'',newPhone:'',type:t.name,date:today(),time:'',address:c?c.address:'',street:addrParts(c).street,city:addrParts(c).city,state:addrParts(c).state,zip:addrParts(c).zip,status:'upcoming',
+ return{id:uid(),customerId:custId||'',custName:c?c.name:'',newPhone:'',type:t.name,date:today(),time:'',address:c?c.address:'',street:addrParts(c).street,city:addrParts(c).city,state:addrParts(c).state||'NE',zip:addrParts(c).zip,status:'upcoming',
  lines:[{id:uid(),desc:t.name,qty:1,rate:t.rate,tax:true}],treatment:{pests:'',product:'',epa:'',amount:'',method:'',areas:''},notes:'',invNotes:'',showTreat:true,miles:'',costs:{chem:'',other:''},invNo:'',invDate:'',dueDate:'',paidDate:'',payMethod:'',loc:null}}
 function openJob(id,custId,mode){
  if(id){const j=job(id);D=JSON.parse(JSON.stringify(j));D.custName=cname(j);D.newPhone='';if(D.street==null&&!D.city&&!D.state&&!D.zip){D.street=D.address||'';D.city='';D.state='';D.zip=''}DNEW=false;DM=mode||(j.status==='upcoming'?'sched':'inv');if(DM==='inv'&&D.status==='upcoming')syncLines()}else{D=blankJob(custId);DNEW=true;DM='sched'}
@@ -507,8 +507,8 @@ function renderJob(){const y=sbodyTop(),j=D,tt=totals(Object.assign({},j,{custom
  <fieldset><legend>Customer and site</legend><div class="fg">
   <div class="wide acwrap"><label class="f">Customer<input id="f-cust" data-f="custName" value="${esc(j.custName)}" placeholder="Type a customer name" autocomplete="off" autocorrect="off" autocapitalize="words" spellcheck="false"></label><div id="custpop" class="acpop" hidden></div></div>
   <div class="wide" id="newbox" ${mc?'hidden':''}><div class="hint" style="margin:0 0 6px">New customer. They are added to Customers when you save.</div><label class="f">Phone<input data-f="newPhone" value="${esc(j.newPhone)}" inputmode="tel" placeholder="(555) 555-5555"></label></div>
-  <label class="f wide">Street address<input data-f="street" value="${esc(j.street)}" autocomplete="off"></label>
-  <label class="f">City<input data-f="city" value="${esc(j.city)}" autocomplete="off"></label>
+  <label class="f wide">Street address<input data-f="street" value="${esc(j.street)}" autocomplete="off" autocapitalize="words"></label>
+  <label class="f">City<input data-f="city" value="${esc(j.city)}" autocomplete="off" autocapitalize="words"></label>
   <label class="f">State<input data-f="state" value="${esc(j.state)}" maxlength="2" autocapitalize="characters" placeholder="NE" autocomplete="off"></label>
   <label class="f">ZIP<input data-f="zip" value="${esc(j.zip)}" inputmode="numeric" maxlength="10" autocomplete="off"></label>
   ${gps}<div class="wide"><button class="btn sm" data-act="useLoc">Save my current location for this job</button></div></div></fieldset>
@@ -548,7 +548,7 @@ function saveJob(thenInvoice){
  let c=matchCust(name);
  if(!c){c={id:uid(),name,kind:'',phone:fmtPhoneSave(D.newPhone||''),email:'',street:D.street||'',city:D.city||'',state:D.state||'',zip:D.zip||'',address:composeAddr(D),taxExempt:false,notes:'',defaultType:D.type};S.customers.push(c)}
  else if(!c.address&&D.address){Object.assign(c,{street:D.street||'',city:D.city||'',state:D.state||'',zip:D.zip||'',address:composeAddr(D)})}
- D.address=composeAddr(D);const j=JSON.parse(JSON.stringify(D));j.customerId=c.id;delete j.custName;delete j.newPhone;delete j._prevType;delete j._auto;delete j._typeSet;
+ D.street=capWords((D.street||'').trim());D.city=capWords((D.city||'').trim());D.address=composeAddr(D);const j=JSON.parse(JSON.stringify(D));j.customerId=c.id;delete j.custName;delete j.newPhone;delete j._prevType;delete j._auto;delete j._typeSet;
  j.lines=j.lines.filter(l=>String(l.desc).trim()||num(l.rate)).map(l=>({id:l.id,desc:l.desc,qty:num(l.qty),rate:num(l.rate),tax:!!l.tax}));
  if(DM==='inv'){const f=j.lines[0];if(f&&svcTypes().some(t=>t.name===f.desc))j.type=f.desc}
  if(!j.loc){const p=photosOf(j.id).find(p=>p.lat!=null);if(p)j.loc={lat:p.lat,lon:p.lon,src:'photo'}}
@@ -570,9 +570,9 @@ function openCust(id){const c=id?cust(id):{id:'',name:'',kind:'',phone:'',email:
   <label class="f">Type<select id="cu-kind"><option value=""></option>${KINDS.map(k=>`<option ${k===c.kind?'selected':''}>${k}</option>`).join('')}</select></label>
   <label class="f">Usual service<select id="cu-svc"><option value=""></option>${svcTypes().map(t=>`<option ${t.name===usual?'selected':''}>${esc(t.name)}</option>`).join('')}</select></label>
   <label class="f">Phone<input id="cu-phone" value="${esc(c.phone)}" inputmode="tel" placeholder="(555) 555-5555" autocomplete="off"></label><label class="f">Email<input id="cu-email" value="${esc(c.email)}" inputmode="email"></label>
-  <label class="f wide">Street address<input id="cu-street" value="${esc(c.street!=null?c.street:c.address)}" autocomplete="off"></label>
-  <label class="f">City<input id="cu-city" value="${esc(c.city)}" autocomplete="off"></label>
-  <label class="f">State<input id="cu-state" value="${esc(c.state)}" maxlength="2" autocapitalize="characters" placeholder="NE" autocomplete="off"></label>
+  <label class="f wide">Street address<input id="cu-street" value="${esc(c.street!=null?c.street:c.address)}" autocomplete="off" autocapitalize="words"></label>
+  <label class="f">City<input id="cu-city" value="${esc(c.city)}" autocomplete="off" autocapitalize="words"></label>
+  <label class="f">State<input id="cu-state" value="${esc(c.state||'NE')}" maxlength="2" autocapitalize="characters" placeholder="NE" autocomplete="off"></label>
   <label class="f">ZIP<input id="cu-zip" value="${esc(c.zip)}" inputmode="numeric" maxlength="10" autocomplete="off"></label>
   <label class="f wide">Private notes<textarea id="cu-notes">${esc(c.notes)}</textarea></label></div>
   <label class="ck" style="margin-top:10px"><input type="checkbox" id="cu-tx" ${c.taxExempt?'checked':''}> Tax exempt</label></fieldset>
@@ -720,7 +720,7 @@ const acts={
  saveCust(el){const name=capWords($('#cu-name').value.trim());if(!name){toast('Enter a name');return}
   const dup=S.customers.find(c=>c.name.toLowerCase()===name.toLowerCase()&&c.id!==el.dataset.id);if(dup){toast('A customer with that name already exists');return}
   let c=el.dataset.id?cust(el.dataset.id):null;const isNew=!c;if(isNew)c={id:uid()};
-  const ad={street:$('#cu-street').value.trim(),city:$('#cu-city').value.trim(),state:$('#cu-state').value.trim(),zip:$('#cu-zip').value.trim()};
+  const ad={street:capWords($('#cu-street').value.trim()),city:capWords($('#cu-city').value.trim()),state:$('#cu-state').value.trim(),zip:$('#cu-zip').value.trim()};
   Object.assign(c,{name,kind:$('#cu-kind').value,phone:fmtPhoneSave($('#cu-phone').value),email:$('#cu-email').value,street:ad.street,city:ad.city,state:ad.state,zip:ad.zip,address:composeAddr(ad),notes:$('#cu-notes').value,taxExempt:$('#cu-tx').checked,defaultType:$('#cu-svc').value});
   if(isNew)S.customers.push(c);persist();closeModal();render();toast('Customer saved')},
  delCust(el){const id=el.dataset.id;if(S.jobs.some(j=>j.customerId===id)){toast('This customer has jobs. Delete or move those jobs first.');return}if(!arm(el,'Tap again to delete'))return;S.customers=S.customers.filter(c=>c.id!==id);persist();closeModal();render()},
@@ -743,6 +743,7 @@ function arm(el,label){if(el.dataset.armed){return true}el.dataset.armed='1';con
 document.addEventListener('click',e=>{if(!e.target.closest('.acwrap'))hideCustPop();const el=e.target.closest('[data-act]');if(!el)return;if(el.tagName==='SELECT')return;const f=acts[el.dataset.act];if(f){e.preventDefault();f(el)}});
 function setPath(o,p,v){const a=p.split('.');while(a.length>1)o=o[a.shift()];o[a[0]]=v}
 function onField(e){const t=e.target;
+ if(t.id==='cu-street'||t.id==='cu-city'||t.dataset.f==='street'||t.dataset.f==='city'){const v=capWords(t.value);if(v!==t.value){const a=t.selectionStart,b=t.selectionEnd;t.value=v;try{t.setSelectionRange(a,b)}catch(x){}}}
  if(e.type==='input'){if(t.id==='cu-phone'||t.dataset.f==='newPhone'||t.dataset.s==='phone'){const v=fmtPhoneLive(t.value);if(v!==t.value)t.value=v}else if(t.id==='cu-state'||t.dataset.f==='state'){const v=t.value.toUpperCase().replace(/[^A-Z]/g,'');if(v!==t.value)t.value=v}}
  if(t.id==='q'){q=t.value;render();return}
  if(t.id==='taxYear'){taxYear=+t.value;render();return}
