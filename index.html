@@ -425,13 +425,12 @@ function taxData(Y){
  const rec=paid.reduce((s,j)=>s+totals(j).sub,0),stx=paid.reduce((s,j)=>s+totals(j).tax,0);
  const yj=S.jobs.filter(j=>inY(j.date));
  const chem=yj.reduce((s,j)=>s+num((j.costs||{}).chem),0),oth=yj.reduce((s,j)=>s+num((j.costs||{}).other),0);
- const miles=yj.reduce((s,j)=>s+num(j.miles),0),mileDed=miles*num(S.settings.mileRate);
  const ex=S.expenses.filter(e=>inY(e.date)),exTot=ex.reduce((s,e)=>s+num(e.amount),0);
  const byCat={};ex.forEach(e=>byCat[e.cat]=(byCat[e.cat]||0)+num(e.amount));
  const byType={};paid.forEach(j=>{const o=byType[j.type]||(byType[j.type]={n:0,r:0});o.n++;o.r+=totals(j).sub});
- const qt=[0,0,0,0],qm=[0,0,0,0];paid.forEach(j=>qt[Math.floor((+j.paidDate.slice(5,7)-1)/3)]+=totals(j).sub);yj.forEach(j=>qm[Math.floor((+j.date.slice(5,7)-1)/3)]+=num(j.miles));
+ const qt=[0,0,0,0];paid.forEach(j=>qt[Math.floor((+j.paidDate.slice(5,7)-1)/3)]+=totals(j).sub);
  const unpaid=S.jobs.filter(j=>j.status==='invoiced'&&inY(j.invDate)).reduce((s,j)=>s+totals(j).total,0);
- return{paid,rec,stx,chem,oth,miles,mileDed,ex,exTot,byCat,byType,qt,qm,unpaid,yj,net:rec-chem-oth-exTot-mileDed}}
+ return{paid,rec,stx,chem,oth,ex,exTot,byCat,byType,qt,unpaid,yj,net:rec-chem-oth-exTot}}
 function vTax(){
  const years=[...new Set([new Date().getFullYear(),...S.jobs.map(j=>+j.date.slice(0,4)),...S.expenses.map(e=>+e.date.slice(0,4))])].sort((a,b)=>b-a);
  const t=taxData(taxYear),r=(l,v,b)=>`<tr${b?' class="tot"':''}><td>${l}</td><td class="r num">${money(v)}</td></tr>`;
@@ -440,15 +439,15 @@ function vTax(){
  return`<div class="vhead"><div><h2>Tax Records</h2><p>Cash basis: income counts in the year it was paid. Estimates for you and your accountant, not tax advice.</p></div>
  <label class="f" style="flex-direction:row;align-items:center;gap:8px">Year <select id="taxYear" data-act="taxYear" style="border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px">${years.map(y=>`<option ${y===taxYear?'selected':''}>${y}</option>`).join('')}</select></label></div>
  <div class="tiles"><div class="tile"><small>Received ${taxYear}</small><b class="num">${money(t.rec)}</b><em>before sales tax</em></div>
- <div class="tile"><small>Expenses + mileage</small><b class="num">${money(t.chem+t.oth+t.exTot+t.mileDed)}</b><em>${Math.round(t.miles)} business miles</em></div>
+ <div class="tile"><small>Expenses</small><b class="num">${money(t.chem+t.oth+t.exTot)}</b><em>${t.ex.length} logged</em></div>
  <div class="tile"><small>Estimated net</small><b class="num">${money(t.net)}</b><em>${money(t.unpaid)} still unpaid</em></div></div>
  <div class="card scroll"><table><tbody>${r('Income received (excludes sales tax)',t.rec)}${t.stx?r('Sales tax collected (not income)',t.stx):''}
- ${r('Chemicals &amp; supplies on jobs',-t.chem)}${r('Other job costs',-t.oth)}
+ ${t.chem?r('Chemicals &amp; supplies on jobs',-t.chem):''}${t.oth?r('Other job costs',-t.oth):''}
  ${Object.keys(t.byCat).sort().map(k=>r('Expense: '+esc(k),-t.byCat[k])).join('')}
- ${r('Mileage deduction ('+Math.round(t.miles)+' mi at '+money(num(S.settings.mileRate))+'/mi)',-t.mileDed)}${r('Estimated net profit',t.net,1)}</tbody></table></div>
+ ${r('Estimated net profit',t.net,1)}</tbody></table></div>
  <section class="group"><h3>By service type</h3><div class="card scroll"><table><thead><tr><th>Type</th><th class="r">Jobs paid</th><th class="r">Received</th></tr></thead><tbody>
  ${Object.keys(t.byType).length?Object.keys(t.byType).map(k=>`<tr><td>${esc(k)}</td><td class="r num">${t.byType[k].n}</td><td class="r num">${money(t.byType[k].r)}</td></tr>`).join(''):'<tr><td colspan="3">No paid jobs this year.</td></tr>'}</tbody></table></div></section>
- <section class="group"><h3>By quarter</h3><div class="card scroll"><table><thead><tr><th>Quarter</th><th class="r">Received</th><th class="r">Miles</th></tr></thead><tbody>${[0,1,2,3].map(i=>`<tr><td>Q${i+1}</td><td class="r num">${money(t.qt[i])}</td><td class="r num">${Math.round(t.qm[i])}</td></tr>`).join('')}</tbody></table></div></section>
+ <section class="group"><h3>By quarter</h3><div class="card scroll"><table><thead><tr><th>Quarter</th><th class="r">Received</th></tr></thead><tbody>${[0,1,2,3].map(i=>`<tr><td>Q${i+1}</td><td class="r num">${money(t.qt[i])}</td></tr>`).join('')}</tbody></table></div></section>
  <section class="group"><h3>General expenses</h3><div class="card"><div class="fg">
   <label class="f">Date<input type="date" id="xd" value="${today()}"></label>
   <label class="f">Category<select id="xc">${EXP_CATS.map(c=>`<option>${esc(c)}</option>`).join('')}</select></label>
@@ -456,7 +455,7 @@ function vTax(){
   <label class="f">Note<input type="text" id="xn" placeholder="What was it for"></label></div>
   <div style="margin-top:10px"><button class="btn pri" data-act="addExp">Add expense</button></div></div>
   ${el.length?`<div class="card scroll" style="margin-top:10px"><table><tbody>${el.map(e=>`<tr><td>${fmtDate(e.date)}</td><td>${esc(e.cat)}<div class="sub" style="color:var(--muted);font-size:12px">${esc(e.note)}</div></td><td class="r num">${money(e.amount)}</td><td class="r"><button class="btn sm bad" data-act="delExp" data-id="${e.id}" aria-label="Delete expense">Delete</button></td></tr>`).join('')}</tbody></table></div>`:`<div class="empty" style="margin-top:10px">${q?'No expenses match.':'No general expenses logged for this year.'}</div>`}</section>
- <section class="group"><h3>Jobs in ${taxYear}</h3>${jl.length?`<div class="card scroll"><table><thead><tr><th>Date</th><th>Customer</th><th>Status</th><th class="r">Total</th><th class="r">Miles</th></tr></thead><tbody>${jl.map(j=>`<tr style="cursor:pointer" data-act="openJob" data-id="${j.id}"><td>${fmtDate(j.date)}</td><td>${esc(cname(j))}<div style="color:var(--muted);font-size:12px">${esc(j.type)}</div></td><td>${j.status}</td><td class="r num">${money(totals(j).total)}</td><td class="r num">${num(j.miles)||''}</td></tr>`).join('')}</tbody></table></div>`:emptyMsg('No jobs match.')}</section>
+ <section class="group"><h3>Jobs in ${taxYear}</h3>${jl.length?`<div class="card scroll"><table><thead><tr><th>Date</th><th>Customer</th><th>Status</th><th class="r">Total</th></tr></thead><tbody>${jl.map(j=>`<tr style="cursor:pointer" data-act="openJob" data-id="${j.id}"><td>${fmtDate(j.date)}</td><td>${esc(cname(j))}<div style="color:var(--muted);font-size:12px">${esc(j.type)}</div></td><td>${j.status}</td><td class="r num">${money(totals(j).total)}</td></tr>`).join('')}</tbody></table></div>`:emptyMsg('No jobs match.')}</section>
  <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-act="csvJobs">Export ${taxYear} jobs (CSV)</button><button class="btn" data-act="csvExp">Export ${taxYear} expenses (CSV)</button></div>`}
 
 function vSet(){const s=S.settings;
@@ -467,13 +466,12 @@ function vSet(){const s=S.settings;
  <label class="f wide">Payment terms<textarea data-s="terms">${esc(s.terms)}</textarea></label><label class="f wide">Footer message<input data-s="footer" value="${esc(s.footer)}"></label></div>
  <p class="hint">Invoice numbers run BPC-0001, BPC-0002 and so on. Next number: BPC-${pad4(S.nextInv)}. Customers marked tax exempt are never charged tax.</p></fieldset>
  <fieldset><legend>Service types and default prices</legend><div class="lines">${s.jobTypes.map((t,i)=>`<div class="ln" style="grid-template-columns:1fr 110px auto"><label class="f">Name<input data-jt="${i}" data-k="name" value="${esc(t.name)}"></label><label class="f">Default price<input type="number" data-jt="${i}" data-k="rate" value="${esc(t.rate)}" step="0.01" min="0"></label><button class="btn sm bad" data-act="jtDel" data-id="${i}">Remove</button></div>`).join('')}</div><div style="margin-top:10px"><button class="btn" data-act="jtAdd">+ Add service type</button></div></fieldset>
- <fieldset><legend>Mileage and photos</legend><div class="fg">${f('mileRate','Mileage rate ($ per mile)','number','step="0.001" min="0"')}</div>
- <p class="hint">Check the current IRS standard mileage rate each year and update it here.</p>
+ <fieldset><legend>Photos</legend>
  <label class="ck" style="margin-top:8px"><input type="checkbox" data-sc="tagLocation" ${s.tagLocation?'checked':''}> Tag photos taken in the app with this device's location when allowed</label>
  <label class="ck" style="margin-top:8px"><input type="checkbox" data-sc="showDashboard" ${s.showDashboard?'checked':''}> Show the Dashboard tab</label></fieldset>
  <fieldset><legend>Backup</legend><p class="hint" style="margin-top:0">Data and photos live in this browser on this device. Save a backup regularly and before changing phones or clearing browser data. The backup is an HTML file you can open and read, and Restore reads it back.</p>
  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn pri" data-act="backup">Save backup</button><label class="btn" style="cursor:pointer">Restore from backup<input type="file" id="restore" accept=".html,.htm,.json,text/html,application/json" hidden></label></div></fieldset>
- <p class="hint" style="text-align:center">Bloom Pest Control app, version 2026-11-07 m</p>
+ <p class="hint" style="text-align:center">Bloom Pest Control app, version 2026-11-07 o</p>
  <fieldset><legend>Reset</legend><div style="display:flex;gap:8px;flex-wrap:wrap">${S.sample?'<button class="btn" data-act="clearSample">Clear example data</button>':''}<button class="btn bad" data-act="resetAll" data-arm="1">Erase everything</button></div></fieldset>`}
 
 /* ---------- modal plumbing ---------- */
@@ -514,6 +512,7 @@ function renderJob(){const y=sbodyTop(),j=D,tt=totals(Object.assign({},j,{custom
  ${DM==='inv'?`<fieldset><legend>Charges</legend><div class="lines">${j.lines.map((l,i)=>{const o=lineOther(l);return `<div class="ln"><label class="f">Service<select data-l="${i}" data-k="sel">${svcTypes().map(t=>`<option value="${esc(t.name)}" ${!o&&t.name===l.desc?'selected':''}>${esc(t.name)}${num(t.rate)?' ('+money(num(t.rate))+')':''}</option>`).join('')}<option value="__other" ${o?'selected':''}>Other (enter manually)</option></select></label><label class="f">Qty<input data-l="${i}" data-k="qty" type="number" step="any" min="0" value="${esc(l.qty)}" inputmode="decimal"></label><label class="f">Price each<input data-l="${i}" data-k="rate" type="number" step="0.01" value="${esc(l.rate)}" inputmode="decimal"></label><div class="tx"><label class="ck"><input type="checkbox" data-l="${i}" data-k="tax" ${l.tax?'checked':''}>Tax</label><button class="btn sm bad" data-act="delLine" data-id="${i}" aria-label="Remove line">×</button></div>${o?`<label class="f dl">Description (shown on invoice)<input data-l="${i}" data-k="desc" value="${esc(l.desc)}" placeholder="Describe the work"></label>`:''}</div>`}).join('')}</div>
   <div style="margin-top:10px"><button class="btn sm" data-act="addLine">+ Add line</button></div>
   <div class="sum"><span>Subtotal <b class="num" id="t-sub">${money(tt.sub)}</b></span><span>Tax <b class="num" id="t-tax">${money(tt.tax)}</b></span><span>Total <b class="num" id="t-tot">${money(tt.total)}</b></span></div></fieldset>
+ <fieldset><legend>Invoice notes</legend><div class="fg"><label class="f wide">Invoice notes (printed on the invoice)<textarea data-f="invNotes" placeholder="Anything the customer should read">${esc(j.invNotes)}</textarea></label></div></fieldset>
  <fieldset><legend>What was sprayed</legend><div class="fg">
   <label class="f wide">Pests targeted<input data-t="pests" value="${esc(tr.pests)}" placeholder="Ants, spiders, stored grain insects"></label>
   <label class="f">Product used<input data-t="product" value="${esc(tr.product)}"></label><label class="f">EPA reg. no.<input data-t="epa" value="${esc(tr.epa)}"></label>
@@ -521,19 +520,14 @@ function renderJob(){const y=sbodyTop(),j=D,tt=totals(Object.assign({},j,{custom
   <label class="f wide">Areas treated<input data-t="areas" value="${esc(tr.areas)}"></label></div>
   <label class="ck" style="margin-top:10px"><input type="checkbox" data-f="showTreat" ${j.showTreat?'checked':''}> Show this on the invoice</label>
   <p class="hint">Saved to the customer's history so you can see exactly what was done last time.</p></fieldset>`:''}
- <fieldset><legend>Notes</legend><div class="fg">
-  <label class="f wide private">Private notes (never shown to the customer)<textarea data-f="notes" placeholder="Gate codes, dog in yard, access problems, follow-up ideas">${esc(j.notes)}</textarea></label>
-  ${DM==='inv'?`<label class="f wide">Invoice notes (printed on the invoice)<textarea data-f="invNotes" placeholder="Anything the customer should read">${esc(j.invNotes)}</textarea></label>`:''}</div></fieldset>
+ 
  ${DM==='inv'?`<fieldset><legend>Photos</legend>
   <div style="display:flex;gap:8px;flex-wrap:wrap"><label class="btn pri" style="cursor:pointer">Take photo<input type="file" id="cam" accept="image/*" capture="environment" hidden></label><label class="btn" style="cursor:pointer">Choose from library<input type="file" id="lib" accept="image/*" multiple hidden></label></div>
   <p class="hint">Photos are hidden from the customer unless you tick "On invoice". Location is read from the photo when the phone saved it.</p>
   ${ph.length?`<div class="photos">${ph.map(p=>`<div class="ph"><img src="${p.data}" alt="Job photo" data-act="viewPhoto" data-id="${p.id}"><div class="pb"><input type="text" data-pc="${p.id}" value="${esc(p.caption)}" placeholder="Caption or note"><label class="ck"><input type="checkbox" data-pi="${p.id}" ${p.onInvoice?'checked':''}> On invoice</label>
   <div class="gps">${p.at?esc(p.at)+' · ':''}${p.lat!=null?`GPS ${fmtGps(p.lat,p.lon)} (${esc(p.src)})`:'No GPS'}</div><button class="btn sm bad" data-act="delPhoto" data-id="${p.id}">Delete</button></div></div>`).join('')}</div>`:''}</fieldset>
- <fieldset><legend>Costs and mileage (for taxes)</legend><div class="fg">
-  <label class="f">Chemicals &amp; supplies $<input data-c="chem" type="number" step="0.01" value="${esc(j.costs.chem)}" inputmode="decimal"></label>
-  <label class="f">Other cost $<input data-c="other" type="number" step="0.01" value="${esc(j.costs.other)}" inputmode="decimal"></label>
-  <label class="f">Round-trip miles<input data-f="miles" type="number" step="0.1" value="${esc(j.miles)}" inputmode="decimal"></label></div>
-  <p class="hint" id="mileHint">${num(j.miles)?'Mileage deduction: '+money(num(j.miles)*num(S.settings.mileRate)):'Enter miles to see the deduction.'}</p></fieldset>`:''}
+ `:''}
+ <fieldset><legend>Private notes</legend><div class="fg"><label class="f wide private">Private notes (never shown to the customer)<textarea data-f="notes" placeholder="Gate codes, dog in yard, access problems, follow-up ideas">${esc(j.notes)}</textarea></label></div></fieldset>
  ${DM==='inv'&&j.status!=='upcoming'?`<fieldset><legend>Status</legend><div class="fg"><label class="f">Stage<select data-f="status"><option value="upcoming" ${j.status==='upcoming'?'selected':''}>Upcoming</option><option value="invoiced" ${j.status==='invoiced'?'selected':''}>Invoiced</option><option value="paid" ${j.status==='paid'?'selected':''}>Paid</option></select></label>
   ${j.status!=='upcoming'?`<label class="f">Invoice date<input type="date" data-f="invDate" value="${esc(j.invDate||today())}"></label><label class="f">Due date<input type="date" data-f="dueDate" value="${esc(j.dueDate||addDays(j.invDate||today(),num(S.settings.dueDays)))}"></label>`:''}
   ${j.status==='paid'?`<label class="f">Paid on<input type="date" data-f="paidDate" value="${esc(j.paidDate||today())}"></label><label class="f">Paid by<select data-f="payMethod">${PAY.map(p=>`<option ${p===j.payMethod?'selected':''}>${p}</option>`).join('')}</select></label>`:''}</div></fieldset>`:''}
@@ -541,8 +535,7 @@ function renderJob(){const y=sbodyTop(),j=D,tt=totals(Object.assign({},j,{custom
  <div class="sfoot">${DNEW?'':'<button class="btn bad" data-act="delJob" data-arm="1">Delete job</button>'}<span class="sp"></span><button class="btn" data-act="closeJob">Cancel</button>${DM==='sched'?'<button class="btn pri grow" data-act="saveJob">Schedule job</button>':(j.status==='upcoming'?'<button class="btn pri grow" data-act="saveInvJob">Create invoice</button>':'<button class="btn pri" data-act="saveJob">Save</button>')}</div></div></div>`);
  setTop(y)}
 function refreshTotals(){const c=matchCust(D.custName);const t=totals(Object.assign({},D,{customerId:c?c.id:''}));
- if($('#t-sub')){$('#t-sub').textContent=money(t.sub);$('#t-tax').textContent=money(t.tax);$('#t-tot').textContent=money(t.total)}
- const h=$('#mileHint');if(h)h.textContent=num(D.miles)?'Mileage deduction: '+money(num(D.miles)*num(S.settings.mileRate)):'Enter miles to see the deduction.'}
+ if($('#t-sub')){$('#t-sub').textContent=money(t.sub);$('#t-tax').textContent=money(t.tax);$('#t-tot').textContent=money(t.total)}}
 function saveJob(thenInvoice){
  const name=(D.custName||'').trim();if(!name){toast('Enter a customer name');return false}if(!D.date){toast('Pick a date');return false}
  let c=matchCust(name);
@@ -562,12 +555,13 @@ function saveJob(thenInvoice){
 
 /* ---------- customer editor ---------- */
 function openCust(id){const c=id?cust(id):{id:'',name:'',kind:'Home',phone:'',email:'',address:'',taxExempt:false,notes:''};
+ const usual=custDefaultType(c)||(svcTypes()[0]||{}).name||'';
  const js=id?S.jobs.filter(j=>j.customerId===id).sort((a,b)=>b.date.localeCompare(a.date)):[];
  openModal(`<div class="backdrop"><div class="sheet" role="dialog" aria-label="Customer"><header><h2>${id?esc(c.name):'New customer'}</h2><button class="btn sm" data-act="closeModal">Close</button></header>
  <div class="sbody"><fieldset><legend>Details</legend><div class="fg">
   <label class="f wide">Name<input id="cu-name" value="${esc(c.name)}"></label>
   <label class="f">Type<select id="cu-kind">${KINDS.map(k=>`<option ${k===c.kind?'selected':''}>${k}</option>`).join('')}</select></label>
-  <label class="f">Usual service<select id="cu-svc"><option value="">Same as last job</option>${S.settings.jobTypes.map(t=>`<option ${t.name===c.defaultType?'selected':''}>${esc(t.name)}</option>`).join('')}</select></label>
+  <label class="f">Usual service<select id="cu-svc">${svcTypes().map(t=>`<option ${t.name===usual?'selected':''}>${esc(t.name)}</option>`).join('')}</select></label>
   <label class="f">Phone<input id="cu-phone" value="${esc(c.phone)}" inputmode="tel" placeholder="(555) 555-5555" autocomplete="off"></label><label class="f">Email<input id="cu-email" value="${esc(c.email)}" inputmode="email"></label>
   <label class="f wide">Street address<input id="cu-street" value="${esc(c.street!=null?c.street:c.address)}" autocomplete="off"></label>
   <label class="f">City<input id="cu-city" value="${esc(c.city)}" autocomplete="off"></label>
@@ -722,8 +716,8 @@ const acts={
  taxYear(el){},
  addExp(){const a=num($('#xa').value);if(!a){toast('Enter an amount');return}S.expenses.push({id:uid(),date:$('#xd').value||today(),cat:$('#xc').value,amount:a,note:$('#xn').value});persist();render();toast('Expense added')},
  delExp(el){S.expenses=S.expenses.filter(e=>e.id!==el.dataset.id);persist();render()},
- csvJobs(){const Y=String(taxYear);const rows=[['Service date','Customer','Type','Address','Status','Invoice #','Invoice date','Paid date','Pay method','Subtotal','Sales tax','Total','Chemicals','Other cost','Miles','Mileage deduction','Pests','Product','EPA reg no','GPS lat','GPS lon']];
-  S.jobs.filter(j=>j.date.startsWith(Y)).sort((a,b)=>a.date.localeCompare(b.date)).forEach(j=>{const t=totals(j),k=j.costs||{},tr=j.treatment||{};rows.push([j.date,cname(j),j.type,j.address,j.status,j.invNo,j.invDate,j.paidDate,j.payMethod,t.sub.toFixed(2),t.tax.toFixed(2),t.total.toFixed(2),num(k.chem).toFixed(2),num(k.other).toFixed(2),num(j.miles),(num(j.miles)*num(S.settings.mileRate)).toFixed(2),tr.pests,tr.product,tr.epa,j.loc?j.loc.lat:'',j.loc?j.loc.lon:''])});
+ csvJobs(){const Y=String(taxYear);const rows=[['Service date','Customer','Type','Address','Status','Invoice #','Invoice date','Paid date','Pay method','Subtotal','Sales tax','Total','Chemicals','Other cost','Pests','Product','EPA reg no','GPS lat','GPS lon']];
+  S.jobs.filter(j=>j.date.startsWith(Y)).sort((a,b)=>a.date.localeCompare(b.date)).forEach(j=>{const t=totals(j),k=j.costs||{},tr=j.treatment||{};rows.push([j.date,cname(j),j.type,j.address,j.status,j.invNo,j.invDate,j.paidDate,j.payMethod,t.sub.toFixed(2),t.tax.toFixed(2),t.total.toFixed(2),num(k.chem).toFixed(2),num(k.other).toFixed(2),tr.pests,tr.product,tr.epa,j.loc?j.loc.lat:'',j.loc?j.loc.lon:''])});
   saveFile(`bloom-jobs-${Y}.csv`,csv(rows),'text/csv')},
  csvExp(){const Y=String(taxYear);saveFile(`bloom-expenses-${Y}.csv`,csv([['Date','Category','Amount','Note'],...S.expenses.filter(e=>e.date.startsWith(Y)).map(e=>[e.date,e.cat,num(e.amount).toFixed(2),e.note])]),'text/csv')},
  jtAdd(){S.settings.jobTypes.push({name:'New service',rate:0});persist();render()},
