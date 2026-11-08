@@ -394,7 +394,7 @@ function vCust(){
  return`<div class="vhead"><div><h2>Customers</h2><p>${S.customers.length} on file. Tap a customer for their full job and spray history.</p></div><button class="btn pri" data-act="newCust">+ New customer</button></div>
  ${list.length?`<div class="list">${list.map(c=>{const js=S.jobs.filter(j=>j.customerId===c.id).sort((a,b)=>b.date.localeCompare(a.date));const life=js.filter(j=>j.status==='paid').reduce((s,j)=>s+totals(j).total,0);
   const pests=[...new Set(js.map(j=>(j.treatment||{}).pests).filter(Boolean))].slice(0,3).join('; ');
-  return`<div class="card job" data-act="openCust" data-id="${c.id}" style="grid-template-columns:1fr"><div class="mid"><div class="nm">${esc(c.name)} <span class="chip">${esc(c.kind)}</span>${c.taxExempt?' <span class="chip">Tax exempt</span>':''}</div>
+  return`<div class="card job" data-act="openCust" data-id="${c.id}" style="grid-template-columns:1fr"><div class="mid"><div class="nm">${esc(c.name)}${c.kind?' <span class="chip">'+esc(c.kind)+'</span>':''}${c.taxExempt?' <span class="chip">Tax exempt</span>':''}</div>
   <div class="sub">${esc(c.address||'No address')}${c.phone?' · '+esc(c.phone):''}</div>
   <div class="sub">${js.length} job${js.length===1?'':'s'}${js[0]?' · last service '+fmtDate(js[0].date):''}${life?' · '+money(life)+' paid':''}</div>${pests?`<div class="sub">Treated for: ${esc(pests)}</div>`:''}</div></div>`}).join('')}</div>`:emptyMsg(q?'No customers match that search.':'No customers yet.')}`}
 
@@ -449,7 +449,7 @@ function vSet(){const s=S.settings;
  <label class="ck" style="margin-top:8px"><input type="checkbox" data-sc="tagLocation" ${s.tagLocation?'checked':''}> Tag photos taken in the app with this device's location when allowed</label></fieldset>
  <fieldset><legend>Backup</legend><p class="hint" style="margin-top:0">Data and photos live in this browser on this device. Save a backup regularly and before changing phones or clearing browser data. The backup is an HTML file you can open and read, and Restore reads it back.</p>
  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn pri" data-act="backup">Save backup</button><label class="btn" style="cursor:pointer">Restore from backup<input type="file" id="restore" accept=".html,.htm,.json,text/html,application/json" hidden></label></div></fieldset>
- <p class="hint" style="text-align:center">Bloom Pest Control app, version 2026-11-07 q</p>
+ <p class="hint" style="text-align:center">Bloom Pest Control app, version 2026-11-07 r</p>
  <fieldset><legend>Reset</legend><div style="display:flex;gap:8px;flex-wrap:wrap">${S.sample?'<button class="btn" data-act="clearSample">Clear example data</button>':''}<button class="btn bad" data-act="resetAll" data-arm="1">Erase everything</button></div></fieldset>`}
 
 /* ---------- modal plumbing ---------- */
@@ -517,7 +517,7 @@ function refreshTotals(){const c=matchCust(D.custName);const t=totals(Object.ass
 function saveJob(thenInvoice){
  const name=capWords((D.custName||'').trim());if(!name){toast('Enter a customer name');return false}if(!D.date){toast('Pick a date');return false}
  let c=matchCust(name);
- if(!c){c={id:uid(),name,kind:'Home',phone:fmtPhoneSave(D.newPhone||''),email:'',address:D.address||'',taxExempt:false,notes:'',defaultType:D.type};S.customers.push(c)}
+ if(!c){c={id:uid(),name,kind:'',phone:fmtPhoneSave(D.newPhone||''),email:'',address:D.address||'',taxExempt:false,notes:'',defaultType:D.type};S.customers.push(c)}
  else if(!c.address&&D.address)c.address=D.address;
  const j=JSON.parse(JSON.stringify(D));j.customerId=c.id;delete j.custName;delete j.newPhone;delete j._prevType;delete j._auto;delete j._typeSet;
  j.lines=j.lines.filter(l=>String(l.desc).trim()||num(l.rate)).map(l=>({id:l.id,desc:l.desc,qty:num(l.qty),rate:num(l.rate),tax:!!l.tax}));
@@ -532,21 +532,21 @@ function saveJob(thenInvoice){
  persist();return j}
 
 /* ---------- customer editor ---------- */
-function openCust(id){const c=id?cust(id):{id:'',name:'',kind:'Home',phone:'',email:'',address:'',taxExempt:false,notes:''};
- const usual=custDefaultType(c)||(svcTypes()[0]||{}).name||'';
+function openCust(id){const c=id?cust(id):{id:'',name:'',kind:'',phone:'',email:'',address:'',taxExempt:false,notes:''};
+ const usual=custDefaultType(c);
  const js=id?S.jobs.filter(j=>j.customerId===id).sort((a,b)=>b.date.localeCompare(a.date)):[];
  openModal(`<div class="backdrop"><div class="sheet" role="dialog" aria-label="Customer"><header><h2>${id?esc(c.name):'New customer'}</h2><button class="btn sm" data-act="closeModal">Close</button></header>
  <div class="sbody"><fieldset><legend>Details</legend><div class="fg">
   <label class="f wide">Name<input id="cu-name" value="${esc(c.name)}" autocapitalize="words" autocomplete="off"></label>
-  <label class="f">Type<select id="cu-kind">${KINDS.map(k=>`<option ${k===c.kind?'selected':''}>${k}</option>`).join('')}</select></label>
-  <label class="f">Usual service<select id="cu-svc">${svcTypes().map(t=>`<option ${t.name===usual?'selected':''}>${esc(t.name)}</option>`).join('')}</select></label>
+  <label class="f">Type<select id="cu-kind"><option value=""></option>${KINDS.map(k=>`<option ${k===c.kind?'selected':''}>${k}</option>`).join('')}</select></label>
+  <label class="f">Usual service<select id="cu-svc"><option value=""></option>${svcTypes().map(t=>`<option ${t.name===usual?'selected':''}>${esc(t.name)}</option>`).join('')}</select></label>
   <label class="f">Phone<input id="cu-phone" value="${esc(c.phone)}" inputmode="tel" placeholder="(555) 555-5555" autocomplete="off"></label><label class="f">Email<input id="cu-email" value="${esc(c.email)}" inputmode="email"></label>
   <label class="f wide">Street address<input id="cu-street" value="${esc(c.street!=null?c.street:c.address)}" autocomplete="off"></label>
   <label class="f">City<input id="cu-city" value="${esc(c.city)}" autocomplete="off"></label>
   <label class="f">State<input id="cu-state" value="${esc(c.state)}" maxlength="2" autocapitalize="characters" placeholder="NE" autocomplete="off"></label>
   <label class="f">ZIP<input id="cu-zip" value="${esc(c.zip)}" inputmode="numeric" maxlength="10" autocomplete="off"></label>
   <label class="f wide">Private notes<textarea id="cu-notes">${esc(c.notes)}</textarea></label></div>
-  <label class="ck" style="margin-top:10px"><input type="checkbox" id="cu-tx" ${c.taxExempt?'checked':''}> Tax exempt (for example farms or schools)</label></fieldset>
+  <label class="ck" style="margin-top:10px"><input type="checkbox" id="cu-tx" ${c.taxExempt?'checked':''}> Tax exempt</label></fieldset>
  ${id?`<fieldset><legend>Job and spray history</legend>${js.length?`<div class="hist">${js.map(j=>{const t=j.treatment||{};const det=[t.pests&&'Pests: '+t.pests,t.product&&'Product: '+t.product,t.method].filter(Boolean).join(' · ');
   return`<div data-act="openJob" data-id="${j.id}"><b>${fmtDate(j.date)}</b> · ${esc(j.type)} · ${j.status} · <span class="num">${money(totals(j).total)}</span>${det?`<div class="sub" style="color:var(--muted);font-size:13px">${esc(det)}</div>`:''}</div>`}).join('')}</div>`:'<div class="empty">No jobs yet.</div>'}</fieldset>`:''}</div>
  <div class="sfoot">${id?'<button class="btn bad" data-act="delCust" data-id="'+id+'" data-arm="1">Delete</button>':''}<span class="sp"></span>${id?`<button class="btn" data-act="newJobFor" data-id="${id}">+ New job</button>`:''}<button class="btn pri" data-act="saveCust" data-id="${id||''}">Save</button></div></div></div>`)}
