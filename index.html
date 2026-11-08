@@ -449,7 +449,7 @@ function vSet(){const s=S.settings;
  <label class="ck" style="margin-top:8px"><input type="checkbox" data-sc="tagLocation" ${s.tagLocation?'checked':''}> Tag photos taken in the app with this device's location when allowed</label></fieldset>
  <fieldset><legend>Backup</legend><p class="hint" style="margin-top:0">Data and photos live in this browser on this device. Save a backup regularly and before changing phones or clearing browser data. The backup is an HTML file you can open and read, and Restore reads it back.</p>
  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn pri" data-act="backup">Save backup</button><label class="btn" style="cursor:pointer">Restore from backup<input type="file" id="restore" accept=".html,.htm,.json,text/html,application/json" hidden></label></div></fieldset>
- <p class="hint" style="text-align:center">Bloom Pest Control app, version 2026-11-07 r</p>
+ <p class="hint" style="text-align:center">Bloom Pest Control app, version 2026-11-07 s</p>
  <fieldset><legend>Reset</legend><div style="display:flex;gap:8px;flex-wrap:wrap">${S.sample?'<button class="btn" data-act="clearSample">Clear example data</button>':''}<button class="btn bad" data-act="resetAll" data-arm="1">Erase everything</button></div></fieldset>`}
 
 /* ---------- modal plumbing ---------- */
@@ -465,7 +465,7 @@ function custDefaultType(c){if(!c)return'';if(c.defaultType&&S.settings.jobTypes
 function syncLines(){const L=D.lines||[],nt=svcTypes().find(x=>x.name===D.type);if(!nt)return;
  const pristine=!L.length||(L.length===1&&num(L[0].qty)===1&&svcTypes().some(t=>t.name===L[0].desc&&num(t.rate)===num(L[0].rate)));
  if(pristine)D.lines=[{id:L[0]?L[0].id:uid(),desc:nt.name,qty:1,rate:nt.rate,tax:L[0]?L[0].tax:true,_o:false}]}
-function applyCustType(c){if(!c||!D||!DNEW||D._typeSet)return;const t=custDefaultType(c);if(!t||t===D.type)return;D.type=t;D._prevType=t;syncLines();const s=document.querySelector('[data-f=type]');if(s)s.value=t}
+function applyCustType(c){if(!c||!D||!DNEW||D._typeSet)return;const t=custDefaultType(c);if(!t||t===D.type)return;D.type=t;D._prevType=t;syncLines();const s=document.querySelector('[data-f=type]');if(s)s.value=t;const s0=document.querySelector('select[data-l="0"][data-k="sel"]');if(s0&&D.lines[0]){s0.value=D.lines[0].desc;const r0=document.querySelector('input[data-l="0"][data-k="rate"]');if(r0)r0.value=D.lines[0].rate}}
 function blankJob(custId){const c=custId&&cust(custId);const dt=c&&custDefaultType(c);const t=(dt&&S.settings.jobTypes.find(x=>x.name===dt))||S.settings.jobTypes[0]||{name:'Service',rate:0};
  return{id:uid(),customerId:custId||'',custName:c?c.name:'',newPhone:'',type:t.name,date:today(),time:'',address:c?c.address:'',status:'upcoming',
  lines:[{id:uid(),desc:t.name,qty:1,rate:t.rate,tax:true}],treatment:{pests:'',product:'',epa:'',amount:'',method:'',areas:''},notes:'',invNotes:'',showTreat:true,miles:'',costs:{chem:'',other:''},invNo:'',invDate:'',dueDate:'',paidDate:'',payMethod:'',loc:null}}
